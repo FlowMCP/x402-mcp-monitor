@@ -12,6 +12,7 @@
     --source-mcp: #58a6ff;
     --source-erc: #3fb950;
     --source-bazaar: #d29922;
+    --source-manual: #f85149;
 }
 
 * {
@@ -135,6 +136,7 @@ header .last-scan {
 .source-dot.mcp-registry { background: var(--source-mcp); }
 .source-dot.erc8004 { background: var(--source-erc); }
 .source-dot.bazaar { background: var(--source-bazaar); }
+.source-dot.manual { background: var(--source-manual); }
 
 .search-bar {
     margin-bottom: 16px;

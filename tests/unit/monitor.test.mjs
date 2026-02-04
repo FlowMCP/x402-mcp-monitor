@@ -6,6 +6,7 @@ import { join } from 'node:path'
 const mockMcpCollect = jest.fn()
 const mockErc8004Collect = jest.fn()
 const mockBazaarCollect = jest.fn()
+const mockManualCollect = jest.fn()
 const mockProbeAll = jest.fn()
 
 jest.unstable_mockModule( '../../src/collector/McpRegistryCollector.mjs', () => ( {
@@ -18,6 +19,10 @@ jest.unstable_mockModule( '../../src/collector/Erc8004Collector.mjs', () => ( {
 
 jest.unstable_mockModule( '../../src/collector/BazaarCollector.mjs', () => ( {
     BazaarCollector: { collect: mockBazaarCollect }
+} ) )
+
+jest.unstable_mockModule( '../../src/collector/ManualCollector.mjs', () => ( {
+    ManualCollector: { collect: mockManualCollect }
 } ) )
 
 jest.unstable_mockModule( '../../src/prober/EndpointProber.mjs', () => ( {
@@ -65,6 +70,7 @@ describe( 'Monitor', () => {
         mockMcpCollect.mockReset()
         mockErc8004Collect.mockReset()
         mockBazaarCollect.mockReset()
+        mockManualCollect.mockReset()
         mockProbeAll.mockReset()
     } )
 
@@ -93,6 +99,13 @@ describe( 'Monitor', () => {
             } )
 
             mockBazaarCollect.mockResolvedValue( {
+                status: true,
+                discoveries: [],
+                totalFetched: 0,
+                error: null
+            } )
+
+            mockManualCollect.mockResolvedValue( {
                 status: true,
                 discoveries: [],
                 totalFetched: 0,
@@ -151,6 +164,13 @@ describe( 'Monitor', () => {
                 discoveries: [],
                 totalFetched: 0,
                 error: 'Bazaar 500'
+            } )
+
+            mockManualCollect.mockResolvedValue( {
+                status: true,
+                discoveries: [],
+                totalFetched: 0,
+                error: null
             } )
 
             mockProbeAll.mockImplementation( async ( { endpoints } ) => ( {

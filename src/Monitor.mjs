@@ -4,6 +4,7 @@ import { StateManager } from './state/StateManager.mjs'
 import { McpRegistryCollector } from './collector/McpRegistryCollector.mjs'
 import { Erc8004Collector } from './collector/Erc8004Collector.mjs'
 import { BazaarCollector } from './collector/BazaarCollector.mjs'
+import { ManualCollector } from './collector/ManualCollector.mjs'
 import { EndpointRegistry } from './registry/EndpointRegistry.mjs'
 import { EndpointProber } from './prober/EndpointProber.mjs'
 import { DataWriter } from './writer/DataWriter.mjs'
@@ -26,7 +27,7 @@ class Monitor {
         const existingEndpoints = existingData[ 'endpoints' ] || []
         log.push( `  Loaded ${existingEndpoints.length} existing endpoints` )
 
-        // Phase 2: Collect from 3 sources in parallel
+        // Phase 2: Collect from 4 sources in parallel
         log.push( 'Phase 2: Collecting from registries...' )
         const { erc8004Cursors } = Monitor.#getErc8004Config( { state } )
 
@@ -37,13 +38,14 @@ class Monitor {
                 fromBlock: erc8004Cursors[ 'lastProcessedBlock' ],
                 contract: erc8004Cursors[ 'contract' ]
             } ),
-            BazaarCollector.collect( {} )
+            BazaarCollector.collect( {} ),
+            ManualCollector.collect( { dataPath } )
         ] )
 
         const allDiscoveries = []
         const collectorLogs = []
 
-        const [ mcpResult, erc8004Result, bazaarResult ] = collectResults
+        const [ mcpResult, erc8004Result, bazaarResult, manualResult ] = collectResults
 
         if( mcpResult[ 'status' ] === 'fulfilled' && mcpResult[ 'value' ][ 'status' ] ) {
             const { discoveries, totalFetched, cursor } = mcpResult[ 'value' ]
@@ -77,6 +79,15 @@ class Monitor {
         } else {
             const errorMsg = bazaarResult[ 'status' ] === 'fulfilled' ? bazaarResult[ 'value' ][ 'error' ] : bazaarResult[ 'reason' ]?.message
             collectorLogs.push( `  Bazaar: FAILED - ${errorMsg}` )
+        }
+
+        if( manualResult[ 'status' ] === 'fulfilled' && manualResult[ 'value' ][ 'status' ] ) {
+            const { discoveries, totalFetched } = manualResult[ 'value' ]
+            allDiscoveries.push( ...discoveries )
+            collectorLogs.push( `  Manual: ${discoveries.length} endpoints from ${totalFetched} entries` )
+        } else {
+            const errorMsg = manualResult[ 'status' ] === 'fulfilled' ? manualResult[ 'value' ][ 'error' ] : manualResult[ 'reason' ]?.message
+            collectorLogs.push( `  Manual: FAILED - ${errorMsg}` )
         }
 
         log.push( ...collectorLogs )

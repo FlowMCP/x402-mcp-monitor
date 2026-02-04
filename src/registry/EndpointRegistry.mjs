@@ -54,7 +54,8 @@ class EndpointRegistry {
             bySource: {
                 'mcp-registry': 0,
                 'erc8004': 0,
-                'bazaar': 0
+                'bazaar': 0,
+                'manual': 0
             },
             byProtocol: {
                 'mcp': 0,
