@@ -1,0 +1,23 @@
+{
+    "version": 1,
+    "updatedAt": null,
+    "cursors": {
+        "mcp-registry": {
+            "lastCursor": null,
+            "lastFetchedAt": null,
+            "totalFetched": 0
+        },
+        "erc8004": {
+            "lastProcessedBlock": 24339925,
+            "lastFetchedAt": null,
+            "genesisBlock": 24339925,
+            "contract": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+        },
+        "bazaar": {
+            "lastOffset": 0,
+            "lastFetchedAt": null,
+            "totalFetched": 0
+        }
+    },
+    "probeMaxAgeDays": 7
+}

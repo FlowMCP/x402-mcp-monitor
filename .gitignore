@@ -1,0 +1,17 @@
+node_modules/
+
+# Test Coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
