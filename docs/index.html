@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>x402 MCP Monitor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>x402 MCP Monitor</h1>
+            <span class="last-scan" id="lastScan">Loading...</span>
+        </header>
+
+        <div class="overview-view" id="overviewView">
+            <div class="intro">
+                <p>
+                    This dashboard monitors x402-capable MCP servers discovered across three registries:
+                    the <a href="https://registry.modelcontextprotocol.io">MCP Registry</a>,
+                    <a href="https://eips.ethereum.org/EIPS/eip-8004">ERC-8004</a> on-chain registry, and
+                    <a href="https://docs.cdp.coinbase.com/x402/bazaar">Coinbase Bazaar</a>.
+                    Each endpoint is actively probed to verify reachability, tool availability, and
+                    <a href="https://www.x402.org/">x402</a> payment support.
+                    Data is refreshed every 6 hours.
+                </p>
+            </div>
+
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="number" id="statTotal">-</div>
+                    <div class="label">Endpoints</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="statReachable">-</div>
+                    <div class="label">Reachable</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="statX402">-</div>
+                    <div class="label">x402 Enabled</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="statSources">3</div>
+                    <div class="label">Sources</div>
+                </div>
+            </div>
+
+            <div class="source-dist" id="sourceDist">
+                <h3>Source Distribution (endpoints may appear in multiple sources)</h3>
+                <div class="source-bars" id="sourceBars"></div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Filter endpoints by URL...">
+            </div>
+
+            <table class="endpoint-table">
+                <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th>Protocol</th>
+                        <th>Sources</th>
+                        <th>x402</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="endpointBody"></tbody>
+            </table>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <span class="source-dot mcp-registry"></span> MCP Registry
+                </div>
+                <div class="legend-item">
+                    <span class="source-dot erc8004"></span> ERC-8004
+                </div>
+                <div class="legend-item">
+                    <span class="source-dot bazaar"></span> Bazaar
+                </div>
+            </div>
+        </div>
+
+        <div class="detail-view" id="detailView">
+            <a href="#" class="back-link" id="backLink">&larr; Back to overview</a>
+            <div id="detailContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let DATA = null
+
+        async function loadData() {
+            try {
+                const resp = await fetch('data.json')
+                DATA = await resp.json()
+                renderOverview()
+                handleHash()
+            } catch (e) {
+                document.getElementById('lastScan').textContent = 'Error loading data'
+            }
+        }
+
+        function timeAgo(iso) {
+            if (!iso) return 'Never'
+            const diff = Date.now() - new Date(iso).getTime()
+            const hours = Math.floor(diff / 3600000)
+            const minutes = Math.floor(diff / 60000)
+            if (hours > 24) return Math.floor(hours / 24) + 'd ago'
+            if (hours > 0) return hours + 'h ago'
+            return minutes + 'm ago'
+        }
+
+        function renderOverview() {
+            if (!DATA) return
+
+            document.getElementById('lastScan').textContent = 'Last scan: ' + timeAgo(DATA.updatedAt)
+            document.getElementById('statTotal').textContent = DATA.stats.total
+            document.getElementById('statReachable').textContent = DATA.stats.reachable
+            document.getElementById('statX402').textContent = DATA.stats.withX402
+
+            const bars = document.getElementById('sourceBars')
+            const bySource = DATA.stats.bySource || {}
+            bars.innerHTML = Object.entries(bySource).map(function(entry) {
+                var key = entry[0]
+                var val = entry[1]
+                return '<div class="source-bar"><span class="source-dot ' + key + '"></span>' + key + ': ' + val + '</div>'
+            }).join('')
+
+            renderTable(DATA.endpoints)
+        }
+
+        function renderTable(endpoints) {
+            var body = document.getElementById('endpointBody')
+            body.innerHTML = endpoints.map(function(ep) {
+                var sourceTags = (ep.sourceTypes || []).map(function(t) {
+                    return '<span class="source-tag ' + t + '" style="background:var(--source-' + t.replace('mcp-registry', 'mcp') + ')" title="' + t + '"></span>'
+                }).join('')
+
+                var x402 = ep.supportsX402 ? '<span class="check-yes">&#10003;</span>' : '<span class="check-no">&#10005;</span>'
+
+                return '<tr>' +
+                    '<td class="url">' + escapeHtml(ep.url) + '</td>' +
+                    '<td><span class="protocol ' + ep.protocol + '">' + ep.protocol + '</span></td>' +
+                    '<td><div class="source-tags">' + sourceTags + '</div></td>' +
+                    '<td>' + x402 + '</td>' +
+                    '<td><a href="#detail/' + ep.id + '" class="detail-link">&rarr;</a></td>' +
+                    '</tr>'
+            }).join('')
+        }
+
+        function renderDetail(epId) {
+            var ep = DATA.endpoints.find(function(e) { return e.id === epId })
+            if (!ep) {
+                document.getElementById('detailContent').innerHTML = '<p>Endpoint not found.</p>'
+                return
+            }
+
+            var html = '<div class="detail-header">' +
+                '<div class="endpoint-url">' + escapeHtml(ep.url) + '</div>' +
+                '<div class="meta">' +
+                'Protocol: <span class="protocol ' + ep.protocol + '">' + ep.protocol + '</span>' +
+                ' &nbsp;|&nbsp; Status: ' + (ep.isReachable ? '<span class="check-yes">Reachable</span>' : '<span class="check-no">Unreachable</span>') +
+                ' &nbsp;|&nbsp; x402: ' + (ep.supportsX402 ? '<span class="check-yes">Yes</span>' : '<span class="check-no">No</span>') +
+                '</div></div>'
+
+            // Sources
+            html += '<div class="detail-section"><h3>Sources</h3>'
+            ;(ep.sources || []).forEach(function(src) {
+                var dotClass = src.type || ''
+                html += '<div class="detail-source">'
+                html += '<div class="source-type"><span class="source-dot ' + dotClass + '"></span> ' + escapeHtml(src.type) + '</div>'
+
+                Object.entries(src).forEach(function(entry) {
+                    var key = entry[0]
+                    var val = entry[1]
+                    if (key === 'type') return
+                    if (val === null || val === undefined) return
+                    var display = typeof val === 'object' ? JSON.stringify(val) : String(val)
+                    html += '<div class="field"><span class="label">' + key + ':</span> <span>' + escapeHtml(display) + '</span></div>'
+                })
+                html += '</div>'
+            })
+            html += '</div>'
+
+            // Probe
+            if (ep.probe) {
+                html += '<div class="detail-section"><h3>Probe Result</h3>'
+                html += '<div class="field"><span class="label">Last probed:</span> <span>' + ep.probe.timestamp + '</span></div>'
+
+                if (ep.probe.categories) {
+                    html += '<div style="margin-top:12px"><h3>Categories</h3><div class="probe-categories">'
+                    Object.entries(ep.probe.categories).forEach(function(entry) {
+                        var key = entry[0]
+                        var val = entry[1]
+                        var icon = val === true ? '<span class="check-yes">&#10003;</span>' : '<span class="check-no">&#10005;</span>'
+                        html += '<div class="probe-category">' + icon + ' ' + key + '</div>'
+                    })
+                    html += '</div></div>'
+                }
+
+                if (ep.probe.summary) {
+                    html += '<div class="probe-summary" style="margin-top:12px"><h3>Summary</h3>'
+                    Object.entries(ep.probe.summary).forEach(function(entry) {
+                        var key = entry[0]
+                        var val = entry[1]
+                        if (val === null || val === undefined) return
+                        var display = typeof val === 'object' ? JSON.stringify(val) : String(val)
+                        html += '<div class="field"><span class="label">' + key + ':</span> <span>' + escapeHtml(display) + '</span></div>'
+                    })
+                    html += '</div>'
+                }
+
+                if (ep.probe.messages && ep.probe.messages.length > 0) {
+                    html += '<div style="margin-top:12px"><h3>Validation Messages</h3>'
+                    html += '<ul style="padding-left:16px;color:var(--text-muted);font-size:13px">'
+                    ep.probe.messages.forEach(function(msg) {
+                        html += '<li>' + escapeHtml(msg) + '</li>'
+                    })
+                    html += '</ul></div>'
+                } else {
+                    html += '<div style="margin-top:12px;color:var(--text-muted);font-size:13px">Validation Messages: (none)</div>'
+                }
+
+                html += '</div>'
+            } else {
+                html += '<div class="detail-section"><h3>Probe Result</h3><p style="color:var(--text-muted)">Not yet probed</p></div>'
+            }
+
+            document.getElementById('detailContent').innerHTML = html
+        }
+
+        function handleHash() {
+            var hash = location.hash
+            if (hash.startsWith('#detail/')) {
+                var id = hash.replace('#detail/', '')
+                document.getElementById('overviewView').classList.add('hidden')
+                document.getElementById('detailView').classList.add('active')
+                renderDetail(id)
+            } else {
+                document.getElementById('overviewView').classList.remove('hidden')
+                document.getElementById('detailView').classList.remove('active')
+            }
+        }
+
+        function escapeHtml(str) {
+            var div = document.createElement('div')
+            div.textContent = str
+            return div.innerHTML
+        }
+
+        // Search
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            var query = e.target.value.toLowerCase()
+            if (!DATA) return
+            var filtered = DATA.endpoints.filter(function(ep) {
+                return ep.url.toLowerCase().indexOf(query) !== -1
+            })
+            renderTable(filtered)
+        })
+
+        // Hash navigation
+        window.addEventListener('hashchange', handleHash)
+
+        document.getElementById('backLink').addEventListener('click', function(e) {
+            e.preventDefault()
+            location.hash = ''
+        })
+
+        // Init
+        loadData()
+    </script>
+</body>
+</html>
