@@ -1,0 +1,14 @@
+{
+    "date": "2026-02-06",
+    "total": 768,
+    "reachable": 64,
+    "withX402": 0,
+    "bySource": {
+        "mcp-registry": 767,
+        "erc8004": 0,
+        "bazaar": 0,
+        "manual": 1
+    },
+    "newEndpoints": 768,
+    "probedThisRun": 768
+}

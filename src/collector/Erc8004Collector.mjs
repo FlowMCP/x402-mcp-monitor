@@ -3,7 +3,7 @@ import { Erc8004RegistryParser } from 'erc8004-registry-parser'
 import { Validation } from '../task/Validation.mjs'
 
 
-const BLOCK_BATCH_SIZE = 2000
+const BLOCK_BATCH_SIZE = 10  // Alchemy Free Tier limit
 const REGISTER_TOPIC = '0x0b17c3b72e3484dbb9f80a2d57d4fca4e29d3e082aa3e7e898ad9be11e4a7ab4'
 
 

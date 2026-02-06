@@ -35,8 +35,8 @@ jobs:
         env:
           ALCHEMY_API_KEY: ${{ secrets.ALCHEMY_API_KEY }}
           PROBE_MAX_AGE_DAYS: 7
-          PROBE_MAX_CONCURRENCY: 5
-          PROBE_TIMEOUT_MS: 15000
+          PROBE_MAX_CONCURRENCY: 50
+          PROBE_TIMEOUT_MS: 5000
         run: node src/index.mjs
 
       - name: Check for changes
