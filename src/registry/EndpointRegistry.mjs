@@ -52,7 +52,6 @@ class EndpointRegistry {
             withX402: 0,
             withTools: 0,
             bySource: {
-                'mcp-registry': 0,
                 'erc8004': 0,
                 'bazaar': 0,
                 'manual': 0

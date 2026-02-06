@@ -64,7 +64,7 @@ describe( 'DataWriter', () => {
                 total: 100,
                 reachable: 50,
                 withX402: 5,
-                bySource: { 'mcp-registry': 60, 'erc8004': 80, 'bazaar': 10 },
+                bySource: { 'erc8004': 80, 'bazaar': 10, 'manual': 10 },
                 newEndpoints: 3,
                 probedThisRun: 20
             }

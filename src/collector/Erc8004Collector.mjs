@@ -1,3 +1,6 @@
+import { readFile, access } from 'node:fs/promises'
+import { join } from 'node:path'
+
 import { Erc8004RegistryParser } from 'erc8004-registry-parser'
 
 import { Validation } from '../task/Validation.mjs'
@@ -8,6 +11,80 @@ const REGISTER_TOPIC = '0x0b17c3b72e3484dbb9f80a2d57d4fca4e29d3e082aa3e7e898ad9b
 
 
 class Erc8004Collector {
+    static async collectFromCache( { dataPath } ) {
+        const cachePath = join( dataPath, 'dune-erc8004.json' )
+        const discoveries = []
+
+        try {
+            await access( cachePath )
+        } catch {
+            return {
+                status: true,
+                discoveries: [],
+                fromCache: false,
+                error: null
+            }
+        }
+
+        try {
+            const content = await readFile( cachePath, 'utf-8' )
+            const data = JSON.parse( content )
+            const { events = [] } = data
+
+            events
+                .forEach( ( event ) => {
+                    const { agentId, ownerAddress, agentName, uriAgentType, mcpEndpoint, a2aEndpoint, isSpecCompliant } = event
+
+                    if( mcpEndpoint !== null && mcpEndpoint !== undefined ) {
+                        discoveries.push( {
+                            url: mcpEndpoint,
+                            protocol: 'mcp',
+                            sourceData: {
+                                type: 'erc8004',
+                                agentId,
+                                ownerAddress,
+                                agentName: agentName || null,
+                                uriType: uriAgentType,
+                                isSpecCompliant: isSpecCompliant || false,
+                                discoveredAt: new Date().toISOString()
+                            }
+                        } )
+                    }
+
+                    if( a2aEndpoint !== null && a2aEndpoint !== undefined ) {
+                        discoveries.push( {
+                            url: a2aEndpoint,
+                            protocol: 'a2a',
+                            sourceData: {
+                                type: 'erc8004',
+                                agentId,
+                                ownerAddress,
+                                agentName: agentName || null,
+                                uriType: uriAgentType,
+                                isSpecCompliant: isSpecCompliant || false,
+                                discoveredAt: new Date().toISOString()
+                            }
+                        } )
+                    }
+                } )
+
+            return {
+                status: true,
+                discoveries,
+                fromCache: true,
+                error: null
+            }
+        } catch( error ) {
+            return {
+                status: false,
+                discoveries: [],
+                fromCache: false,
+                error: error.message
+            }
+        }
+    }
+
+
     static async collect( { alchemyUrl, fromBlock, contract } ) {
         const { status, messages } = Validation.validationCollectErc8004( { alchemyUrl, fromBlock, contract } )
         if( !status ) { Validation.error( { messages } ) }

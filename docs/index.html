@@ -3,274 +3,671 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>x402 MCP Monitor</title>
+    <title>x402 Endpoint Validator</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>x402 MCP Monitor</h1>
-            <span class="last-scan" id="lastScan">Loading...</span>
+            <h1>x402 Endpoint Validator</h1>
+            <p class="subtitle">Validate MCP, A2A, and x402 endpoints &middot; Build ERC-8004 registration metadata</p>
         </header>
 
-        <div class="overview-view" id="overviewView">
-            <div class="intro">
-                <p>
-                    This dashboard monitors x402-capable MCP servers discovered across three registries:
-                    the <a href="https://registry.modelcontextprotocol.io">MCP Registry</a>,
-                    <a href="https://eips.ethereum.org/EIPS/eip-8004">ERC-8004</a> on-chain registry, and
-                    <a href="https://docs.cdp.coinbase.com/x402/bazaar">Coinbase Bazaar</a>.
-                    Each endpoint is actively probed to verify reachability, tool availability, and
-                    <a href="https://www.x402.org/">x402</a> payment support.
-                    Data is refreshed every 6 hours.
-                </p>
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="validate">Validate Endpoint</button>
+            <button class="tab-btn" data-tab="erc8004">Register on ERC-8004</button>
+        </div>
+
+        <!-- Tab 1: Validate Endpoint -->
+        <div class="tab-content active" id="tab-validate">
+            <div class="validator-input">
+                <input type="text" id="urlInput" placeholder="https://your-endpoint.example.com" spellcheck="false">
+                <button class="validator-btn" id="validateBtn">Validate</button>
             </div>
 
-            <div class="stats-grid" id="statsGrid">
-                <div class="stat-card">
-                    <div class="number" id="statTotal">-</div>
-                    <div class="label">Endpoints</div>
-                </div>
-                <div class="stat-card">
-                    <div class="number" id="statReachable">-</div>
-                    <div class="label">Reachable</div>
-                </div>
-                <div class="stat-card">
-                    <div class="number" id="statX402">-</div>
-                    <div class="label">x402 Enabled</div>
-                </div>
-                <div class="stat-card">
-                    <div class="number" id="statSources">4</div>
-                    <div class="label">Sources</div>
-                </div>
+            <div class="example-urls">
+                <span>Try:</span>
+                <a data-url="https://x402.flowmcp.org">x402.flowmcp.org</a>
             </div>
 
-            <div class="source-dist" id="sourceDist">
-                <h3>Source Distribution (endpoints may appear in multiple sources)</h3>
-                <div class="source-bars" id="sourceBars"></div>
+            <div class="error-message" id="errorBox"></div>
+
+            <div class="loading-section" id="loadingSection">
+                <div class="loading-spinner"></div>
+                <div class="loading-text" id="loadingText">Probing endpoint...</div>
             </div>
 
-            <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="Filter endpoints by URL...">
-            </div>
-
-            <table class="endpoint-table">
-                <thead>
-                    <tr>
-                        <th>Endpoint</th>
-                        <th>Protocol</th>
-                        <th>Sources</th>
-                        <th>x402</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody id="endpointBody"></tbody>
-            </table>
-
-            <div class="legend">
-                <div class="legend-item">
-                    <span class="source-dot mcp-registry"></span> MCP Registry
-                </div>
-                <div class="legend-item">
-                    <span class="source-dot erc8004"></span> ERC-8004
-                </div>
-                <div class="legend-item">
-                    <span class="source-dot bazaar"></span> Bazaar
-                </div>
-                <div class="legend-item">
-                    <span class="source-dot manual"></span> Manual
-                </div>
+            <div class="results-section" id="resultsSection">
+                <div class="verdict-grid" id="verdictGrid"></div>
+                <div id="detailSections"></div>
             </div>
         </div>
 
-        <div class="detail-view" id="detailView">
-            <a href="#" class="back-link" id="backLink">&larr; Back to overview</a>
-            <div id="detailContent"></div>
+        <!-- Tab 2: ERC-8004 Metadata Builder -->
+        <div class="tab-content" id="tab-erc8004">
+            <div class="detail-section">
+                <h3>Registration File</h3>
+
+                <div class="form-group">
+                    <label class="form-label">Name *</label>
+                    <input type="text" class="form-input" id="regName" placeholder="My Agent">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description *</label>
+                    <textarea class="form-textarea" id="regDescription" placeholder="A brief description of your agent"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Image URL</label>
+                    <input type="text" class="form-input" id="regImage" placeholder="https://example.com/agent-logo.png">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Services</label>
+                    <div class="service-rows" id="serviceRows"></div>
+                    <button class="add-service-btn" id="addServiceBtn">+ Add Service</button>
+                </div>
+
+                <div class="form-group">
+                    <div class="form-checkbox-row">
+                        <input type="checkbox" id="regX402">
+                        <label for="regX402">x402 Payment Support</label>
+                    </div>
+                    <div class="form-checkbox-row">
+                        <input type="checkbox" id="regActive" checked>
+                        <label for="regActive">Active</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="section-header">
+                    <h3>JSON Preview</h3>
+                    <button class="copy-btn" id="copyJsonBtn">Copy JSON</button>
+                </div>
+                <div class="json-preview" id="jsonPreview">{}</div>
+            </div>
+
+            <div style="text-align:center; margin-bottom:24px;">
+                <button class="validator-btn" id="erc8004ValidateBtn">Validate Registration</button>
+            </div>
+
+            <div class="loading-section" id="erc8004Loading">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Validating registration file...</div>
+            </div>
+
+            <div id="erc8004Results"></div>
         </div>
+
+        <footer>
+            <a href="https://github.com/FlowMCP/x402-mcp-monitor">x402-mcp-monitor</a> &middot;
+            Server-side validation via Node.js probes
+        </footer>
     </div>
 
     <script>
-        let DATA = null
+        // ── Helpers ──
 
-        async function loadData() {
-            try {
-                const resp = await fetch('data.json')
-                DATA = await resp.json()
-                renderOverview()
-                handleHash()
-            } catch (e) {
-                document.getElementById('lastScan').textContent = 'Error loading data'
-            }
-        }
-
-        function timeAgo(iso) {
-            if (!iso) return 'Never'
-            const diff = Date.now() - new Date(iso).getTime()
-            const hours = Math.floor(diff / 3600000)
-            const minutes = Math.floor(diff / 60000)
-            if (hours > 24) return Math.floor(hours / 24) + 'd ago'
-            if (hours > 0) return hours + 'h ago'
-            return minutes + 'm ago'
-        }
-
-        function renderOverview() {
-            if (!DATA) return
-
-            document.getElementById('lastScan').textContent = 'Last scan: ' + timeAgo(DATA.updatedAt)
-            document.getElementById('statTotal').textContent = DATA.stats.total
-            document.getElementById('statReachable').textContent = DATA.stats.reachable
-            document.getElementById('statX402').textContent = DATA.stats.withX402
-
-            const bars = document.getElementById('sourceBars')
-            const bySource = DATA.stats.bySource || {}
-            bars.innerHTML = Object.entries(bySource).map(function(entry) {
-                var key = entry[0]
-                var val = entry[1]
-                return '<div class="source-bar"><span class="source-dot ' + key + '"></span>' + key + ': ' + val + '</div>'
-            }).join('')
-
-            renderTable(DATA.endpoints)
-        }
-
-        function renderTable(endpoints) {
-            var body = document.getElementById('endpointBody')
-            body.innerHTML = endpoints.map(function(ep) {
-                var sourceTags = (ep.sourceTypes || []).map(function(t) {
-                    return '<span class="source-tag ' + t + '" style="background:var(--source-' + t.replace('mcp-registry', 'mcp') + ')" title="' + t + '"></span>'
-                }).join('')
-
-                var x402 = ep.supportsX402 ? '<span class="check-yes">&#10003;</span>' : '<span class="check-no">&#10005;</span>'
-
-                return '<tr>' +
-                    '<td class="url">' + escapeHtml(ep.url) + '</td>' +
-                    '<td><span class="protocol ' + ep.protocol + '">' + ep.protocol + '</span></td>' +
-                    '<td><div class="source-tags">' + sourceTags + '</div></td>' +
-                    '<td>' + x402 + '</td>' +
-                    '<td><a href="#detail/' + ep.id + '" class="detail-link">&rarr;</a></td>' +
-                    '</tr>'
-            }).join('')
-        }
-
-        function renderDetail(epId) {
-            var ep = DATA.endpoints.find(function(e) { return e.id === epId })
-            if (!ep) {
-                document.getElementById('detailContent').innerHTML = '<p>Endpoint not found.</p>'
-                return
-            }
-
-            var html = '<div class="detail-header">' +
-                '<div class="endpoint-url">' + escapeHtml(ep.url) + '</div>' +
-                '<div class="meta">' +
-                'Protocol: <span class="protocol ' + ep.protocol + '">' + ep.protocol + '</span>' +
-                ' &nbsp;|&nbsp; Status: ' + (ep.isReachable ? '<span class="check-yes">Reachable</span>' : '<span class="check-no">Unreachable</span>') +
-                ' &nbsp;|&nbsp; x402: ' + (ep.supportsX402 ? '<span class="check-yes">Yes</span>' : '<span class="check-no">No</span>') +
-                '</div></div>'
-
-            // Sources
-            html += '<div class="detail-section"><h3>Sources</h3>'
-            ;(ep.sources || []).forEach(function(src) {
-                var dotClass = src.type || ''
-                html += '<div class="detail-source">'
-                html += '<div class="source-type"><span class="source-dot ' + dotClass + '"></span> ' + escapeHtml(src.type) + '</div>'
-
-                Object.entries(src).forEach(function(entry) {
-                    var key = entry[0]
-                    var val = entry[1]
-                    if (key === 'type') return
-                    if (val === null || val === undefined) return
-                    var display = typeof val === 'object' ? JSON.stringify(val) : String(val)
-                    html += '<div class="field"><span class="label">' + key + ':</span> <span>' + escapeHtml(display) + '</span></div>'
-                })
-                html += '</div>'
-            })
-            html += '</div>'
-
-            // Probe
-            if (ep.probe) {
-                html += '<div class="detail-section"><h3>Probe Result</h3>'
-                html += '<div class="field"><span class="label">Last probed:</span> <span>' + ep.probe.timestamp + '</span></div>'
-
-                if (ep.probe.categories) {
-                    html += '<div style="margin-top:12px"><h3>Categories</h3><div class="probe-categories">'
-                    Object.entries(ep.probe.categories).forEach(function(entry) {
-                        var key = entry[0]
-                        var val = entry[1]
-                        var icon = val === true ? '<span class="check-yes">&#10003;</span>' : '<span class="check-no">&#10005;</span>'
-                        html += '<div class="probe-category">' + icon + ' ' + key + '</div>'
-                    })
-                    html += '</div></div>'
-                }
-
-                if (ep.probe.summary) {
-                    html += '<div class="probe-summary" style="margin-top:12px"><h3>Summary</h3>'
-                    Object.entries(ep.probe.summary).forEach(function(entry) {
-                        var key = entry[0]
-                        var val = entry[1]
-                        if (val === null || val === undefined) return
-                        var display = typeof val === 'object' ? JSON.stringify(val) : String(val)
-                        html += '<div class="field"><span class="label">' + key + ':</span> <span>' + escapeHtml(display) + '</span></div>'
-                    })
-                    html += '</div>'
-                }
-
-                if (ep.probe.messages && ep.probe.messages.length > 0) {
-                    html += '<div style="margin-top:12px"><h3>Validation Messages</h3>'
-                    html += '<ul style="padding-left:16px;color:var(--text-muted);font-size:13px">'
-                    ep.probe.messages.forEach(function(msg) {
-                        html += '<li>' + escapeHtml(msg) + '</li>'
-                    })
-                    html += '</ul></div>'
-                } else {
-                    html += '<div style="margin-top:12px;color:var(--text-muted);font-size:13px">Validation Messages: (none)</div>'
-                }
-
-                html += '</div>'
-            } else {
-                html += '<div class="detail-section"><h3>Probe Result</h3><p style="color:var(--text-muted)">Not yet probed</p></div>'
-            }
-
-            document.getElementById('detailContent').innerHTML = html
-        }
-
-        function handleHash() {
-            var hash = location.hash
-            if (hash.startsWith('#detail/')) {
-                var id = hash.replace('#detail/', '')
-                document.getElementById('overviewView').classList.add('hidden')
-                document.getElementById('detailView').classList.add('active')
-                renderDetail(id)
-            } else {
-                document.getElementById('overviewView').classList.remove('hidden')
-                document.getElementById('detailView').classList.remove('active')
-            }
-        }
-
-        function escapeHtml(str) {
-            var div = document.createElement('div')
+        function escapeHtml( str ) {
+            var div = document.createElement( 'div' )
             div.textContent = str
+
             return div.innerHTML
         }
 
-        // Search
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            var query = e.target.value.toLowerCase()
-            if (!DATA) return
-            var filtered = DATA.endpoints.filter(function(ep) {
-                return ep.url.toLowerCase().indexOf(query) !== -1
-            })
-            renderTable(filtered)
-        })
+        function show( el ) { el.style.display = 'block' }
+        function hide( el ) { el.style.display = 'none' }
 
-        // Hash navigation
-        window.addEventListener('hashchange', handleHash)
+        // ── Tab Navigation ──
 
-        document.getElementById('backLink').addEventListener('click', function(e) {
-            e.preventDefault()
-            location.hash = ''
-        })
+        document.querySelectorAll( '.tab-btn' ).forEach( function( btn ) {
+            btn.addEventListener( 'click', function() {
+                document.querySelectorAll( '.tab-btn' ).forEach( function( b ) { b.classList.remove( 'active' ) } )
+                document.querySelectorAll( '.tab-content' ).forEach( function( c ) { c.classList.remove( 'active' ) } )
+                btn.classList.add( 'active' )
+                document.getElementById( 'tab-' + btn.getAttribute( 'data-tab' ) ).classList.add( 'active' )
+            } )
+        } )
 
-        // Init
-        loadData()
+        // ══════════════════════════════════════
+        //  TAB 1: Endpoint Validator
+        // ══════════════════════════════════════
+
+        function setValidatorState( state ) {
+            var loading = document.getElementById( 'loadingSection' )
+            var results = document.getElementById( 'resultsSection' )
+            var errorBox = document.getElementById( 'errorBox' )
+            var btn = document.getElementById( 'validateBtn' )
+
+            hide( loading )
+            hide( results )
+            hide( errorBox )
+            btn.disabled = false
+
+            if( state === 'loading' ) {
+                show( loading )
+                btn.disabled = true
+            } else if( state === 'results' ) {
+                show( results )
+            }
+        }
+
+        function showError( msg ) {
+            var errorBox = document.getElementById( 'errorBox' )
+            errorBox.textContent = msg
+            show( errorBox )
+        }
+
+        function setLoadingText( text ) {
+            document.getElementById( 'loadingText' ).textContent = text
+        }
+
+        function isMcpDetected( mcp ) {
+            if( !mcp.categories ) { return false }
+
+            return mcp.categories.supportsMcp || mcp.categories.hasTools || mcp.summary.serverName !== null
+        }
+
+        function buildX402Detail( mcp ) {
+            if( mcp.summary.x402ToolCount > 0 ) {
+                return mcp.summary.x402ToolCount + ' payment tool' + ( mcp.summary.x402ToolCount !== 1 ? 's' : '' )
+            }
+
+            var parts = []
+            if( mcp.summary.networks && mcp.summary.networks.length > 0 ) {
+                parts.push( mcp.summary.networks.length + ' network' + ( mcp.summary.networks.length !== 1 ? 's' : '' ) )
+            }
+            if( mcp.summary.schemes && mcp.summary.schemes.length > 0 ) {
+                parts.push( mcp.summary.schemes.join( ', ' ) )
+            }
+
+            return parts.length > 0 ? parts.join( ' · ' ) : 'Supported'
+        }
+
+        function renderVerdicts( mcp, a2a ) {
+            var grid = document.getElementById( 'verdictGrid' )
+
+            var mcpDetected = isMcpDetected( mcp )
+            var x402Detected = mcp.categories && mcp.categories.supportsX402
+
+            var cards = [
+                {
+                    label: 'MCP',
+                    pass: mcpDetected,
+                    detail: mcpDetected
+                        ? ( mcp.summary.serverName || 'MCP Server' ) + ' (' + mcp.summary.toolCount + ' tools)'
+                        : 'Not detected'
+                },
+                {
+                    label: 'A2A',
+                    pass: a2a.categories && a2a.categories.hasAgentCard,
+                    detail: a2a.categories && a2a.categories.hasAgentCard
+                        ? ( a2a.summary.agentName || 'A2A Agent' )
+                        : 'Not detected'
+                },
+                {
+                    label: 'x402',
+                    pass: x402Detected,
+                    detail: x402Detected
+                        ? buildX402Detail( mcp )
+                        : 'Not detected'
+                }
+            ]
+
+            grid.innerHTML = cards.map( function( card ) {
+                var cls = card.pass ? 'pass' : 'fail'
+                var icon = card.pass
+                    ? '<span class="check-yes" style="font-size:28px">&#10003;</span>'
+                    : '<span class="check-no" style="font-size:28px">&#10005;</span>'
+
+                return '<div class="verdict-card ' + cls + '">' +
+                    '<div class="verdict-icon">' + icon + '</div>' +
+                    '<div class="verdict-label">' + escapeHtml( card.label ) + '</div>' +
+                    '<div class="verdict-detail">' + escapeHtml( card.detail ) + '</div>' +
+                    '</div>'
+            } ).join( '' )
+        }
+
+        function renderDetails( mcp, a2a ) {
+            var container = document.getElementById( 'detailSections' )
+            var html = ''
+
+            // MCP Detail
+            if( isMcpDetected( mcp ) ) {
+                html += '<div class="detail-section"><h3>MCP Server</h3>'
+                html += '<div class="probe-summary">'
+                html += '<div class="field"><span class="label">Server Name:</span> <span>' + escapeHtml( mcp.summary.serverName || '-' ) + '</span></div>'
+                html += '<div class="field"><span class="label">Server Version:</span> <span>' + escapeHtml( mcp.summary.serverVersion || '-' ) + '</span></div>'
+                html += '<div class="field"><span class="label">Tools Count:</span> <span>' + mcp.summary.toolCount + '</span></div>'
+
+                if( mcp.summary.latencyPingMs !== null ) {
+                    var pingPct = Math.min( mcp.summary.latencyPingMs / 5000 * 100, 100 )
+                    html += '<div class="latency-bar">'
+                    html += '<span class="latency-label">Ping Latency:</span>'
+                    html += '<div class="latency-track"><div class="latency-fill" style="width:' + pingPct + '%"></div></div>'
+                    html += '<span class="latency-value">' + mcp.summary.latencyPingMs + ' ms</span>'
+                    html += '</div>'
+                }
+
+                if( mcp.summary.latencyListToolsMs !== null ) {
+                    var toolsPct = Math.min( mcp.summary.latencyListToolsMs / 5000 * 100, 100 )
+                    html += '<div class="latency-bar">'
+                    html += '<span class="latency-label">Tools Latency:</span>'
+                    html += '<div class="latency-track"><div class="latency-fill" style="width:' + toolsPct + '%"></div></div>'
+                    html += '<span class="latency-value">' + mcp.summary.latencyListToolsMs + ' ms</span>'
+                    html += '</div>'
+                }
+
+                html += '</div>'
+
+                // Categories
+                html += '<h3 style="margin-top:16px">Categories</h3>'
+                html += '<div class="categories-grid">'
+                var catKeys = Object.keys( mcp.categories )
+                catKeys.forEach( function( key ) {
+                    var val = mcp.categories[ key ]
+                    var icon = val
+                        ? '<span class="check-yes">&#10003;</span>'
+                        : '<span class="check-no">&#10005;</span>'
+                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
+                } )
+                html += '</div>'
+
+                // Tools list
+                if( mcp.tools && mcp.tools.length > 0 ) {
+                    html += '<h3 style="margin-top:16px">Tools</h3>'
+                    html += '<div class="tools-grid">'
+
+                    var x402ToolNames = {}
+                    if( mcp.x402Tools ) {
+                        mcp.x402Tools.forEach( function( t ) {
+                            x402ToolNames[ t.name || t ] = true
+                        } )
+                    }
+
+                    mcp.tools.forEach( function( tool ) {
+                        var toolName = tool.name || '-'
+                        var isX402 = x402ToolNames[ toolName ] || false
+
+                        if( !isX402 ) {
+                            var str = JSON.stringify( tool ).toLowerCase()
+                            isX402 = str.indexOf( 'x402' ) !== -1 ||
+                                str.indexOf( 'paymentrequir' ) !== -1 ||
+                                str.indexOf( 'payment_requir' ) !== -1
+                        }
+
+                        var cls = isX402 ? 'tool-item x402-tool' : 'tool-item'
+                        html += '<div class="' + cls + '">'
+                        html += '<div class="tool-name">' + escapeHtml( toolName )
+                        if( isX402 ) { html += ' <span class="badge badge-green">x402</span>' }
+                        html += '</div>'
+                        html += '<div class="tool-desc">' + escapeHtml( ( tool.description || '' ).substring( 0, 120 ) ) + '</div>'
+                        html += '</div>'
+                    } )
+
+                    html += '</div>'
+                }
+
+                html += '</div>'
+            }
+
+            // A2A Detail
+            if( a2a.categories && a2a.categories.hasAgentCard ) {
+                html += '<div class="detail-section"><h3>A2A Agent</h3>'
+                html += '<div class="probe-summary">'
+                html += '<div class="field"><span class="label">Agent Name:</span> <span>' + escapeHtml( a2a.summary.agentName || '-' ) + '</span></div>'
+                html += '<div class="field"><span class="label">Skills:</span> <span>' + a2a.summary.skillCount + '</span></div>'
+
+                if( a2a.summary.latencyMs !== null ) {
+                    var a2aPct = Math.min( a2a.summary.latencyMs / 5000 * 100, 100 )
+                    html += '<div class="latency-bar">'
+                    html += '<span class="latency-label">Latency:</span>'
+                    html += '<div class="latency-track"><div class="latency-fill" style="width:' + a2aPct + '%"></div></div>'
+                    html += '<span class="latency-value">' + a2a.summary.latencyMs + ' ms</span>'
+                    html += '</div>'
+                }
+
+                if( a2a.summary.protocolBindings && a2a.summary.protocolBindings.length > 0 ) {
+                    html += '<div class="field"><span class="label">Protocol Bindings:</span> <span>'
+                    a2a.summary.protocolBindings.forEach( function( binding ) {
+                        html += '<span class="badge badge-blue">' + escapeHtml( typeof binding === 'string' ? binding : JSON.stringify( binding ) ) + '</span> '
+                    } )
+                    html += '</span></div>'
+                }
+
+                html += '</div></div>'
+            }
+
+            // x402 Detail
+            if( mcp.categories && mcp.categories.supportsX402 ) {
+                html += '<div class="detail-section"><h3>x402 Payment Support</h3>'
+                html += '<div class="probe-summary">'
+
+                if( mcp.summary.networks && mcp.summary.networks.length > 0 ) {
+                    html += '<div class="field"><span class="label">Networks:</span> <span>'
+                    mcp.summary.networks.forEach( function( n ) {
+                        html += '<span class="badge badge-green">' + escapeHtml( n ) + '</span> '
+                    } )
+                    html += '</span></div>'
+                }
+
+                if( mcp.summary.schemes && mcp.summary.schemes.length > 0 ) {
+                    html += '<div class="field"><span class="label">Schemes:</span> <span>'
+                    mcp.summary.schemes.forEach( function( s ) {
+                        html += '<span class="badge badge-blue">' + escapeHtml( s ) + '</span> '
+                    } )
+                    html += '</span></div>'
+                }
+
+                // Payment Requirements
+                if( mcp.x402PaymentRequirements && mcp.x402PaymentRequirements.length > 0 ) {
+                    html += '</div>'
+                    html += '<h3 style="margin-top:16px">Payment Requirements</h3>'
+                    html += '<div class="tools-grid">'
+                    mcp.x402PaymentRequirements.forEach( function( pr ) {
+                        html += '<div class="tool-item x402-tool">'
+                        if( pr.network ) { html += '<div class="tool-name">' + escapeHtml( pr.network ) + '</div>' }
+                        var details = []
+                        if( pr.scheme ) { details.push( 'Scheme: ' + pr.scheme ) }
+                        if( pr.maxAmountRequired ) { details.push( 'Max: ' + pr.maxAmountRequired ) }
+                        if( pr.resource ) { details.push( 'Resource: ' + pr.resource ) }
+                        if( pr.payTo ) { details.push( 'Pay to: ' + pr.payTo.substring( 0, 10 ) + '...' + pr.payTo.slice( -6 ) ) }
+                        if( details.length > 0 ) {
+                            html += '<div class="tool-desc">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
+                        }
+                        html += '</div>'
+                    } )
+                    html += '</div>'
+                } else {
+                    html += '</div>'
+                }
+
+                html += '</div>'
+            }
+
+            // Validation Messages
+            if( mcp.messages && mcp.messages.length > 0 ) {
+                html += '<div class="detail-section"><h3>Validation Messages</h3>'
+                html += '<ul class="messages-list">'
+                mcp.messages.forEach( function( msg ) {
+                    html += '<li>' + escapeHtml( msg ) + '</li>'
+                } )
+                html += '</ul></div>'
+            }
+
+            container.innerHTML = html
+        }
+
+        async function validate() {
+            var urlInput = document.getElementById( 'urlInput' )
+            var rawUrl = urlInput.value.trim()
+
+            if( !rawUrl ) {
+                showError( 'Please enter a URL to validate.' )
+
+                return
+            }
+
+            if( rawUrl.indexOf( '://' ) === -1 ) {
+                rawUrl = 'https://' + rawUrl
+            }
+
+            try {
+                new URL( rawUrl )
+            } catch( _e ) {
+                showError( 'Invalid URL. Please enter a valid URL (e.g. https://example.com).' )
+
+                return
+            }
+
+            setValidatorState( 'loading' )
+            setLoadingText( 'Probing MCP and A2A (server-side)...' )
+
+            try {
+                var response = await fetch( '/api/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify( { url: rawUrl } )
+                } )
+
+                var data = await response.json()
+
+                if( data.error ) {
+                    setValidatorState( 'idle' )
+                    showError( data.error )
+
+                    return
+                }
+
+                setValidatorState( 'results' )
+                renderVerdicts( data.mcp, data.a2a )
+                renderDetails( data.mcp, data.a2a )
+            } catch( err ) {
+                setValidatorState( 'idle' )
+                showError( 'Server error: ' + ( err.message || 'Unknown' ) )
+            }
+        }
+
+        document.getElementById( 'validateBtn' ).addEventListener( 'click', validate )
+
+        document.getElementById( 'urlInput' ).addEventListener( 'keydown', function( e ) {
+            if( e.key === 'Enter' ) { validate() }
+        } )
+
+        document.querySelectorAll( '.example-urls a' ).forEach( function( link ) {
+            link.addEventListener( 'click', function( e ) {
+                e.preventDefault()
+                document.getElementById( 'urlInput' ).value = link.getAttribute( 'data-url' )
+                validate()
+            } )
+        } )
+
+        // ══════════════════════════════════════
+        //  TAB 2: ERC-8004 Metadata Builder
+        // ══════════════════════════════════════
+
+        function addServiceRow( protocol, url ) {
+            var container = document.getElementById( 'serviceRows' )
+            var row = document.createElement( 'div' )
+            row.className = 'service-row'
+            row.innerHTML =
+                '<select class="form-select service-protocol">' +
+                    '<option value="mcp"' + ( protocol === 'mcp' ? ' selected' : '' ) + '>mcp</option>' +
+                    '<option value="a2a"' + ( protocol === 'a2a' ? ' selected' : '' ) + '>a2a</option>' +
+                    '<option value="oasf"' + ( protocol === 'oasf' ? ' selected' : '' ) + '>oasf</option>' +
+                    '<option value="ens"' + ( protocol === 'ens' ? ' selected' : '' ) + '>ens</option>' +
+                    '<option value="did"' + ( protocol === 'did' ? ' selected' : '' ) + '>did</option>' +
+                '</select>' +
+                '<input type="text" class="form-input service-url" placeholder="https://your-service.example.com" value="' + escapeHtml( url || '' ) + '">' +
+                '<button class="remove-btn" title="Remove service">&#10005;</button>'
+
+            row.querySelector( '.remove-btn' ).addEventListener( 'click', function() {
+                row.remove()
+                updateJsonPreview()
+            } )
+
+            row.querySelector( '.service-protocol' ).addEventListener( 'change', updateJsonPreview )
+            row.querySelector( '.service-url' ).addEventListener( 'input', updateJsonPreview )
+
+            container.appendChild( row )
+            updateJsonPreview()
+        }
+
+        document.getElementById( 'addServiceBtn' ).addEventListener( 'click', function() {
+            addServiceRow( 'mcp', '' )
+        } )
+
+        // Add one default service row
+        addServiceRow( 'mcp', '' )
+
+        function buildRegistrationFile() {
+            var name = document.getElementById( 'regName' ).value.trim()
+            var description = document.getElementById( 'regDescription' ).value.trim()
+            var image = document.getElementById( 'regImage' ).value.trim()
+            var x402Support = document.getElementById( 'regX402' ).checked
+            var active = document.getElementById( 'regActive' ).checked
+
+            var services = []
+            document.querySelectorAll( '.service-row' ).forEach( function( row ) {
+                var protocol = row.querySelector( '.service-protocol' ).value
+                var url = row.querySelector( '.service-url' ).value.trim()
+
+                if( url ) {
+                    services.push( { protocol: protocol, url: url } )
+                }
+            } )
+
+            var file = {}
+            if( name ) { file.name = name }
+            if( description ) { file.description = description }
+            if( image ) { file.image = image }
+            if( services.length > 0 ) { file.services = services }
+            file.x402Support = x402Support
+            file.active = active
+
+            return file
+        }
+
+        function updateJsonPreview() {
+            var file = buildRegistrationFile()
+            document.getElementById( 'jsonPreview' ).textContent = JSON.stringify( file, null, 4 )
+        }
+
+        // Live update on input changes
+        document.getElementById( 'regName' ).addEventListener( 'input', updateJsonPreview )
+        document.getElementById( 'regDescription' ).addEventListener( 'input', updateJsonPreview )
+        document.getElementById( 'regImage' ).addEventListener( 'input', updateJsonPreview )
+        document.getElementById( 'regX402' ).addEventListener( 'change', updateJsonPreview )
+        document.getElementById( 'regActive' ).addEventListener( 'change', updateJsonPreview )
+
+        // Initial preview
+        updateJsonPreview()
+
+        // Copy JSON
+        document.getElementById( 'copyJsonBtn' ).addEventListener( 'click', function() {
+            var btn = document.getElementById( 'copyJsonBtn' )
+            var text = document.getElementById( 'jsonPreview' ).textContent
+
+            navigator.clipboard.writeText( text ).then( function() {
+                btn.textContent = 'Copied!'
+                btn.classList.add( 'copied' )
+                setTimeout( function() {
+                    btn.textContent = 'Copy JSON'
+                    btn.classList.remove( 'copied' )
+                }, 1500 )
+            } )
+        } )
+
+        // Validate ERC-8004
+        document.getElementById( 'erc8004ValidateBtn' ).addEventListener( 'click', async function() {
+            var btn = document.getElementById( 'erc8004ValidateBtn' )
+            var loadingEl = document.getElementById( 'erc8004Loading' )
+            var resultsEl = document.getElementById( 'erc8004Results' )
+
+            var registrationFile = buildRegistrationFile()
+
+            btn.disabled = true
+            show( loadingEl )
+            resultsEl.innerHTML = ''
+
+            try {
+                var response = await fetch( '/api/erc8004/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify( { registrationFile: registrationFile } )
+                } )
+
+                var data = await response.json()
+
+                hide( loadingEl )
+                btn.disabled = false
+
+                renderErc8004Results( data )
+            } catch( err ) {
+                hide( loadingEl )
+                btn.disabled = false
+                resultsEl.innerHTML = '<div class="error-message" style="display:block">Server error: ' + escapeHtml( err.message || 'Unknown' ) + '</div>'
+            }
+        } )
+
+        function renderErc8004Results( data ) {
+            var container = document.getElementById( 'erc8004Results' )
+            var html = '<div class="validation-result">'
+
+            // Status Banner
+            if( data.status ) {
+                html += '<div class="status-banner valid">&#10003; Registration file is valid</div>'
+            } else {
+                html += '<div class="status-banner invalid">&#10005; Registration file has issues</div>'
+            }
+
+            // Validation Messages
+            if( data.messages && data.messages.length > 0 ) {
+                html += '<div class="detail-section"><h3>Validation Messages</h3>'
+                html += '<ul class="messages-list">'
+                data.messages.forEach( function( msg ) {
+                    html += '<li>' + escapeHtml( msg ) + '</li>'
+                } )
+                html += '</ul></div>'
+            }
+
+            // Categories
+            if( data.categories && Object.keys( data.categories ).length > 0 ) {
+                html += '<div class="detail-section"><h3>Categories</h3>'
+                html += '<div class="categories-grid">'
+                Object.keys( data.categories ).forEach( function( key ) {
+                    var val = data.categories[ key ]
+                    var icon = val
+                        ? '<span class="check-yes">&#10003;</span>'
+                        : '<span class="check-no">&#10005;</span>'
+                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
+                } )
+                html += '</div></div>'
+            }
+
+            // Entries
+            if( data.entries && Object.keys( data.entries ).length > 0 ) {
+                html += '<div class="detail-section"><h3>Extracted Metadata</h3>'
+                html += '<div class="probe-summary">'
+                Object.keys( data.entries ).forEach( function( key ) {
+                    var val = data.entries[ key ]
+                    var display = val === null ? '-' : ( typeof val === 'object' ? JSON.stringify( val ) : String( val ) )
+                    html += '<div class="field"><span class="label">' + escapeHtml( key ) + ':</span> <span>' + escapeHtml( display ) + '</span></div>'
+                } )
+                html += '</div></div>'
+            }
+
+            // Base64 URI
+            if( data.encodedUri ) {
+                html += '<div class="detail-section">'
+                html += '<div class="section-header"><h3>Base64 Data URI</h3>'
+                html += '<button class="copy-btn" id="copyUriBtn">Copy URI</button></div>'
+                html += '<div class="uri-output" id="uriOutput">' + escapeHtml( data.encodedUri ) + '</div>'
+                html += '<p style="color:var(--text-muted); font-size:12px; margin-top:8px;">'
+                html += 'Use this URI when calling the <code>register()</code> function on the ERC-8004 contract.</p>'
+                html += '</div>'
+            }
+
+            html += '</div>'
+            container.innerHTML = html
+
+            // Copy URI handler
+            var copyUriBtn = document.getElementById( 'copyUriBtn' )
+            if( copyUriBtn ) {
+                copyUriBtn.addEventListener( 'click', function() {
+                    navigator.clipboard.writeText( data.encodedUri ).then( function() {
+                        copyUriBtn.textContent = 'Copied!'
+                        copyUriBtn.classList.add( 'copied' )
+                        setTimeout( function() {
+                            copyUriBtn.textContent = 'Copy URI'
+                            copyUriBtn.classList.remove( 'copied' )
+                        }, 1500 )
+                    } )
+                } )
+            }
+        }
     </script>
 </body>
 </html>

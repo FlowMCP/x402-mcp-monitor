@@ -2,11 +2,6 @@
     "version": 1,
     "updatedAt": "2026-02-06T01:52:29.566Z",
     "cursors": {
-        "mcp-registry": {
-            "lastCursor": "live.alpic.staging/email-server:0.1.14",
-            "lastFetchedAt": "2026-02-06T01:44:25.294Z",
-            "totalFetched": 1379
-        },
         "erc8004": {
             "lastProcessedBlock": 24394581,
             "lastFetchedAt": "2026-02-06T01:44:25.294Z",

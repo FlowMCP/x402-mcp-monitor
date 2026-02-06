@@ -1,0 +1,57 @@
+name: Import Dune ERC-8004 Data
+
+on:
+  schedule:
+    # Run on Sundays and Wednesdays at 00:00 UTC
+    - cron: '0 0 * * 0,3'
+  workflow_dispatch:
+
+concurrency:
+  group: dune-import
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Import Dune data
+        env:
+          DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
+          DUNE_QUERY_ID: ${{ secrets.DUNE_QUERY_ID }}
+        run: node scripts/import-dune.mjs
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git add data/dune-erc8004.json
+          if git diff --staged --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update ERC-8004 data from Dune $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push

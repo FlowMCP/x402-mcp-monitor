@@ -8,11 +8,6 @@ const DEFAULT_STATE = {
     version: 1,
     updatedAt: null,
     cursors: {
-        'mcp-registry': {
-            lastCursor: null,
-            lastFetchedAt: null,
-            totalFetched: 0
-        },
         'erc8004': {
             lastProcessedBlock: 24339925,
             lastFetchedAt: null,
@@ -37,7 +32,7 @@ const DEFAULT_ENDPOINTS = {
         reachable: 0,
         withX402: 0,
         withTools: 0,
-        bySource: { 'mcp-registry': 0, 'erc8004': 0, 'bazaar': 0 },
+        bySource: { 'erc8004': 0, 'bazaar': 0, 'manual': 0 },
         byProtocol: { 'mcp': 0, 'a2a': 0 }
     },
     endpoints: []

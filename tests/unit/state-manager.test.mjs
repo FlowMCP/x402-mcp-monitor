@@ -24,7 +24,6 @@ describe( 'StateManager', () => {
                 version: 1,
                 updatedAt: '2026-02-04T12:00:00.000Z',
                 cursors: {
-                    'mcp-registry': { lastCursor: 'abc', lastFetchedAt: '2026-02-04T12:00:00.000Z', totalFetched: 100 },
                     'erc8004': { lastProcessedBlock: 25000000, lastFetchedAt: '2026-02-04T12:00:00.000Z', genesisBlock: 24339925, contract: '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432' },
                     'bazaar': { lastOffset: 0, lastFetchedAt: '2026-02-04T12:00:00.000Z', totalFetched: 25 }
                 },
@@ -36,7 +35,6 @@ describe( 'StateManager', () => {
             const { state } = await StateManager.loadState( { dataPath: TEST_DATA_PATH } )
 
             expect( state[ 'version' ] ).toBe( 1 )
-            expect( state[ 'cursors' ][ 'mcp-registry' ][ 'totalFetched' ] ).toBe( 100 )
             expect( state[ 'cursors' ][ 'erc8004' ][ 'lastProcessedBlock' ] ).toBe( 25000000 )
         } )
 
@@ -73,7 +71,6 @@ describe( 'StateManager', () => {
                 version: 1,
                 updatedAt: null,
                 cursors: {
-                    'mcp-registry': { lastCursor: null, lastFetchedAt: null, totalFetched: 0 },
                     'erc8004': { lastProcessedBlock: 24339925, lastFetchedAt: null, genesisBlock: 24339925, contract: '0x8004' },
                     'bazaar': { lastOffset: 0, lastFetchedAt: null, totalFetched: 0 }
                 },

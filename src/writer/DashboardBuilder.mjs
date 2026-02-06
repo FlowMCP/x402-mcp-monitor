@@ -46,10 +46,24 @@ class DashboardBuilder {
                 return entry
             } )
 
+        // Sort: x402-enabled first, then by reachability, then by source count
+        const sortedEndpoints = dashboardEndpoints
+            .sort( ( a, b ) => {
+                if( a.supportsX402 !== b.supportsX402 ) {
+                    return a.supportsX402 ? -1 : 1
+                }
+
+                if( a.isReachable !== b.isReachable ) {
+                    return a.isReachable ? -1 : 1
+                }
+
+                return b.sourceCount - a.sourceCount
+            } )
+
         const dashboardData = {
             updatedAt,
             stats,
-            endpoints: dashboardEndpoints
+            endpoints: sortedEndpoints
         }
 
         return { dashboardData }

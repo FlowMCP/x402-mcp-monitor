@@ -10,8 +10,8 @@ describe( 'EndpointRegistry', () => {
                     url: 'https://mcp.example.com/mcp',
                     protocol: 'mcp',
                     sourceData: {
-                        type: 'mcp-registry',
-                        serverName: 'io.github.user/weather',
+                        type: 'erc8004',
+                        agentId: '42',
                         discoveredAt: '2026-02-01T10:00:00.000Z'
                     }
                 }
@@ -26,7 +26,7 @@ describe( 'EndpointRegistry', () => {
             expect( endpoints[ 0 ][ 'url' ] ).toBe( 'https://mcp.example.com/mcp' )
             expect( endpoints[ 0 ][ 'protocol' ] ).toBe( 'mcp' )
             expect( endpoints[ 0 ][ 'sources' ] ).toHaveLength( 1 )
-            expect( endpoints[ 0 ][ 'sources' ][ 0 ][ 'type' ] ).toBe( 'mcp-registry' )
+            expect( endpoints[ 0 ][ 'sources' ][ 0 ][ 'type' ] ).toBe( 'erc8004' )
             expect( endpoints[ 0 ][ 'probe' ] ).toBeNull()
             expect( endpoints[ 0 ][ 'id' ] ).toMatch( /^ep_[a-f0-9]{8}$/ )
         } )
@@ -42,8 +42,8 @@ describe( 'EndpointRegistry', () => {
                     protocol: 'mcp',
                     sources: [
                         {
-                            type: 'mcp-registry',
-                            serverName: 'io.github.user/weather',
+                            type: 'erc8004',
+                            agentId: '42',
                             discoveredAt: '2026-02-01T10:00:00.000Z'
                         }
                     ],
@@ -56,8 +56,8 @@ describe( 'EndpointRegistry', () => {
                     url: 'https://mcp.example.com/mcp',
                     protocol: 'mcp',
                     sourceData: {
-                        type: 'erc8004',
-                        agentId: '42',
+                        type: 'bazaar',
+                        resourceId: 'res-1',
                         discoveredAt: '2026-02-02T06:00:00.000Z'
                     }
                 }
@@ -70,8 +70,8 @@ describe( 'EndpointRegistry', () => {
 
             expect( endpoints ).toHaveLength( 1 )
             expect( endpoints[ 0 ][ 'sources' ] ).toHaveLength( 2 )
-            expect( endpoints[ 0 ][ 'sources' ][ 0 ][ 'type' ] ).toBe( 'mcp-registry' )
-            expect( endpoints[ 0 ][ 'sources' ][ 1 ][ 'type' ] ).toBe( 'erc8004' )
+            expect( endpoints[ 0 ][ 'sources' ][ 0 ][ 'type' ] ).toBe( 'erc8004' )
+            expect( endpoints[ 0 ][ 'sources' ][ 1 ][ 'type' ] ).toBe( 'bazaar' )
         } )
 
 
@@ -85,8 +85,8 @@ describe( 'EndpointRegistry', () => {
                     protocol: 'mcp',
                     sources: [
                         {
-                            type: 'mcp-registry',
-                            serverName: 'old-name',
+                            type: 'erc8004',
+                            agentId: 'old-id',
                             discoveredAt: '2026-01-01T00:00:00.000Z'
                         }
                     ],
@@ -99,8 +99,8 @@ describe( 'EndpointRegistry', () => {
                     url: 'https://mcp.example.com/mcp',
                     protocol: 'mcp',
                     sourceData: {
-                        type: 'mcp-registry',
-                        serverName: 'new-name',
+                        type: 'erc8004',
+                        agentId: 'new-id',
                         discoveredAt: '2026-02-01T00:00:00.000Z'
                     }
                 }
@@ -113,7 +113,7 @@ describe( 'EndpointRegistry', () => {
 
             expect( endpoints ).toHaveLength( 1 )
             expect( endpoints[ 0 ][ 'sources' ] ).toHaveLength( 1 )
-            expect( endpoints[ 0 ][ 'sources' ][ 0 ][ 'serverName' ] ).toBe( 'new-name' )
+            expect( endpoints[ 0 ][ 'sources' ][ 0 ][ 'agentId' ] ).toBe( 'new-id' )
         } )
 
 
@@ -122,12 +122,12 @@ describe( 'EndpointRegistry', () => {
                 {
                     url: 'https://MCP.EXAMPLE.COM/mcp/',
                     protocol: 'mcp',
-                    sourceData: { type: 'mcp-registry', discoveredAt: '2026-02-01T00:00:00.000Z' }
+                    sourceData: { type: 'erc8004', discoveredAt: '2026-02-01T00:00:00.000Z' }
                 },
                 {
                     url: 'https://mcp.example.com/mcp',
                     protocol: 'mcp',
-                    sourceData: { type: 'erc8004', discoveredAt: '2026-02-02T00:00:00.000Z' }
+                    sourceData: { type: 'bazaar', discoveredAt: '2026-02-02T00:00:00.000Z' }
                 }
             ]
 
@@ -150,7 +150,7 @@ describe( 'EndpointRegistry', () => {
                     id,
                     url: 'https://mcp.example.com/mcp',
                     protocol: 'mcp',
-                    sources: [ { type: 'mcp-registry', discoveredAt: '2026-02-01T00:00:00.000Z' } ],
+                    sources: [ { type: 'erc8004', discoveredAt: '2026-02-01T00:00:00.000Z' } ],
                     probe: probeData
                 }
             ]
@@ -217,8 +217,8 @@ describe( 'EndpointRegistry', () => {
                 {
                     protocol: 'mcp',
                     sources: [
-                        { type: 'mcp-registry' },
-                        { type: 'erc8004' }
+                        { type: 'erc8004' },
+                        { type: 'bazaar' }
                     ],
                     probe: null
                 },
@@ -231,8 +231,8 @@ describe( 'EndpointRegistry', () => {
 
             const { stats } = EndpointRegistry.computeStats( { endpoints } )
 
-            expect( stats[ 'bySource' ][ 'mcp-registry' ] ).toBe( 1 )
             expect( stats[ 'bySource' ][ 'erc8004' ] ).toBe( 2 )
+            expect( stats[ 'bySource' ][ 'bazaar' ] ).toBe( 1 )
         } )
 
 

@@ -1,7 +1,6 @@
 import { join } from 'node:path'
 
 import { StateManager } from './state/StateManager.mjs'
-import { McpRegistryCollector } from './collector/McpRegistryCollector.mjs'
 import { Erc8004Collector } from './collector/Erc8004Collector.mjs'
 import { BazaarCollector } from './collector/BazaarCollector.mjs'
 import { ManualCollector } from './collector/ManualCollector.mjs'
@@ -27,12 +26,11 @@ class Monitor {
         const existingEndpoints = existingData[ 'endpoints' ] || []
         log.push( `  Loaded ${existingEndpoints.length} existing endpoints` )
 
-        // Phase 2: Collect from 4 sources in parallel
+        // Phase 2: Collect from 3 sources in parallel
         log.push( 'Phase 2: Collecting from registries...' )
         const { erc8004Cursors } = Monitor.#getErc8004Config( { state } )
 
         const collectResults = await Promise.allSettled( [
-            McpRegistryCollector.collect( {} ),
             Erc8004Collector.collect( {
                 alchemyUrl,
                 fromBlock: erc8004Cursors[ 'lastProcessedBlock' ],
@@ -45,19 +43,7 @@ class Monitor {
         const allDiscoveries = []
         const collectorLogs = []
 
-        const [ mcpResult, erc8004Result, bazaarResult, manualResult ] = collectResults
-
-        if( mcpResult[ 'status' ] === 'fulfilled' && mcpResult[ 'value' ][ 'status' ] ) {
-            const { discoveries, totalFetched, cursor } = mcpResult[ 'value' ]
-            allDiscoveries.push( ...discoveries )
-            state[ 'cursors' ][ 'mcp-registry' ][ 'lastFetchedAt' ] = new Date().toISOString()
-            state[ 'cursors' ][ 'mcp-registry' ][ 'totalFetched' ] = totalFetched
-            state[ 'cursors' ][ 'mcp-registry' ][ 'lastCursor' ] = cursor
-            collectorLogs.push( `  MCP Registry: ${discoveries.length} endpoints from ${totalFetched} servers` )
-        } else {
-            const errorMsg = mcpResult[ 'status' ] === 'fulfilled' ? mcpResult[ 'value' ][ 'error' ] : mcpResult[ 'reason' ]?.message
-            collectorLogs.push( `  MCP Registry: FAILED - ${errorMsg}` )
-        }
+        const [ erc8004Result, bazaarResult, manualResult ] = collectResults
 
         if( erc8004Result[ 'status' ] === 'fulfilled' && erc8004Result[ 'value' ][ 'status' ] ) {
             const { discoveries, lastProcessedBlock } = erc8004Result[ 'value' ]

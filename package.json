@@ -6,9 +6,12 @@
     "type": "module",
     "scripts": {
         "collect": "node src/index.mjs",
+        "precompute": "node scripts/precompute.mjs",
+        "import-dune": "node scripts/import-dune.mjs",
         "test": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles",
         "test:coverage:src": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles --coverage --collectCoverageFrom='src/**/*.mjs'",
-        "test:file": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles"
+        "test:file": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles",
+        "serve": "node src/server/Server.mjs"
     },
     "dependencies": {
         "erc8004-registry-parser": "github:FlowMCP/erc8004-registry-parser#main",

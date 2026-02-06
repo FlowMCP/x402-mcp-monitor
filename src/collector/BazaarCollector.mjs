@@ -3,9 +3,32 @@ import { Validation } from '../task/Validation.mjs'
 
 const BAZAAR_BASE = 'https://api.cdp.coinbase.com/platform/v2/x402/discovery'
 const PAGE_LIMIT = 100
+const MAX_RETRIES = 3
+const RETRY_DELAYS = [ 5000, 10000, 20000 ]
 
 
 class BazaarCollector {
+    static #sleep( ms ) {
+        return new Promise( ( resolve ) => setTimeout( resolve, ms ) )
+    }
+
+
+    static async #fetchWithRetry( { url, retryCount = 0 } ) {
+        const response = await fetch( url, {
+            headers: { 'Accept': 'application/json' }
+        } )
+
+        if( response.status === 429 && retryCount < MAX_RETRIES ) {
+            const delay = RETRY_DELAYS[ retryCount ]
+            await BazaarCollector.#sleep( delay )
+
+            return BazaarCollector.#fetchWithRetry( { url, retryCount: retryCount + 1 } )
+        }
+
+        return response
+    }
+
+
     static async collect( { bazaarUrl = BAZAAR_BASE } ) {
         const { status, messages } = Validation.validationCollectBazaar( { bazaarUrl } )
         if( !status ) { Validation.error( { messages } ) }
@@ -24,9 +47,7 @@ class BazaarCollector {
                 } )
 
                 const url = `${bazaarUrl}/resources?${params.toString()}`
-                const response = await fetch( url, {
-                    headers: { 'Accept': 'application/json' }
-                } )
+                const response = await BazaarCollector.#fetchWithRetry( { url } )
 
                 if( !response.ok ) {
                     throw new Error( `Bazaar API returned ${response.status}` )

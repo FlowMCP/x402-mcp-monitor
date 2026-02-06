@@ -29,8 +29,8 @@ describe( 'DashboardBuilder', () => {
                         url: 'https://mcp.test.com',
                         protocol: 'mcp',
                         sources: [
-                            { type: 'mcp-registry', serverName: 'test' },
-                            { type: 'erc8004', agentId: '42' }
+                            { type: 'erc8004', agentId: '42' },
+                            { type: 'bazaar', resourceId: 'res-1' }
                         ],
                         probe: {
                             timestamp: '2026-02-04T12:00:00.000Z',
@@ -57,7 +57,7 @@ describe( 'DashboardBuilder', () => {
             expect( dashboardData[ 'endpoints' ] ).toHaveLength( 2 )
 
             const ep1 = dashboardData[ 'endpoints' ][ 0 ]
-            expect( ep1[ 'sourceTypes' ] ).toEqual( [ 'mcp-registry', 'erc8004' ] )
+            expect( ep1[ 'sourceTypes' ] ).toEqual( [ 'erc8004', 'bazaar' ] )
             expect( ep1[ 'sourceCount' ] ).toBe( 2 )
             expect( ep1[ 'isReachable' ] ).toBe( true )
             expect( ep1[ 'supportsX402' ] ).toBe( true )
