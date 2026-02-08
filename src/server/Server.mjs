@@ -142,8 +142,8 @@ class Server {
 
         const x402Data = mcpEntries[ 'x402' ] || null
         const tools = mcpEntries[ 'tools' ] || []
-        const x402Tools = x402Data !== null && Array.isArray( x402Data[ 'tools' ] ) ? x402Data[ 'tools' ] : []
-        const x402PaymentRequirements = x402Data !== null && Array.isArray( x402Data[ 'paymentRequirements' ] ) ? x402Data[ 'paymentRequirements' ] : []
+        const x402Tools = x402Data !== null && Array.isArray( x402Data[ 'restrictedCalls' ] ) ? x402Data[ 'restrictedCalls' ] : []
+        const x402PaymentRequirements = x402Data !== null && Array.isArray( x402Data[ 'paymentOptions' ] ) ? x402Data[ 'paymentOptions' ] : []
 
         const mcpData = {
             timestamp: entries[ 'timestamp' ],
