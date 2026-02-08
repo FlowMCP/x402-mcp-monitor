@@ -179,12 +179,6 @@ class Server {
         }
 
         const a2aMessages = ( layers && layers[ 'a2a' ] && layers[ 'a2a' ][ 'messages' ] ) || []
-        const filteredA2aMessages = a2aMessages
-            .filter( ( msg ) => {
-                const isInternal = typeof msg === 'string' && msg.indexOf( 'Cannot read properties' ) !== -1
-
-                return !isInternal
-            } )
 
         const a2aData = {
             timestamp: entries[ 'timestamp' ],
@@ -202,7 +196,7 @@ class Server {
                 protocolBindings: a2aEntries[ 'protocolBindings' ] || [],
                 latencyMs: null
             },
-            messages: filteredA2aMessages
+            messages: a2aMessages
         }
 
         const uiEntries = entries[ 'ui' ] || null

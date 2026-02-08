@@ -395,14 +395,14 @@ describe( 'Server', () => {
         } )
 
 
-        test( 'filters A2A internal error messages in legacy format', async () => {
+        test( 'passes through all A2A messages without filtering', async () => {
             const assessmentWithA2aErrors = {
                 ...MOCK_ASSESSMENT,
                 layers: {
                     ...MOCK_ASSESSMENT.layers,
                     a2a: {
                         status: false,
-                        messages: [ 'Cannot read properties of null', 'Not an A2A endpoint' ],
+                        messages: [ 'CSV-023: Missing required field "supported_interfaces"', 'Not an A2A endpoint' ],
                         categories: {},
                         entries: {}
                     }
@@ -421,8 +421,9 @@ describe( 'Server', () => {
             await requestHandler( request, response )
 
             const data = JSON.parse( response.body )
-            expect( data.a2a.messages ).toHaveLength( 1 )
-            expect( data.a2a.messages[ 0 ] ).toBe( 'Not an A2A endpoint' )
+            expect( data.a2a.messages ).toHaveLength( 2 )
+            expect( data.a2a.messages[ 0 ] ).toBe( 'CSV-023: Missing required field "supported_interfaces"' )
+            expect( data.a2a.messages[ 1 ] ).toBe( 'Not an A2A endpoint' )
         } )
 
 
