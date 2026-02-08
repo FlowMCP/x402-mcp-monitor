@@ -25,10 +25,10 @@ jobs:
       - name: Run Jest tests (with coverage)
         run: npm run test:coverage:src
 
-      - name: Upload coverage to Codecov (OIDC)
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
           fail_ci_if_error: true
           flags: unittests
