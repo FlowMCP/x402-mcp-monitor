@@ -226,6 +226,13 @@
                         } )
                     }
 
+                    var uiToolNames = {}
+                    if( ui && ui.uiLinkedTools ) {
+                        ui.uiLinkedTools.forEach( function( t ) {
+                            uiToolNames[ t.name || t ] = true
+                        } )
+                    }
+
                     mcp.tools.forEach( function( tool ) {
                         var toolName = tool.name || '-'
                         var isX402 = x402ToolNames[ toolName ] || false
@@ -237,10 +244,13 @@
                                 str.indexOf( 'payment_requir' ) !== -1
                         }
 
+                        var isUI = uiToolNames[ toolName ] || false
+
                         var cls = isX402 ? 'tool-item x402-tool' : 'tool-item'
                         html += '<div class="' + cls + '">'
                         html += '<div class="tool-name">' + escapeHtml( toolName )
                         if( isX402 ) { html += ' <span class="badge badge-green">x402</span>' }
+                        if( isUI ) { html += ' <span class="badge badge-purple">UI</span>' }
                         html += '</div>'
                         html += '<div class="tool-desc">' + escapeHtml( ( tool.description || '' ).substring( 0, 120 ) ) + '</div>'
                         html += '</div>'
@@ -257,15 +267,32 @@
                 html += '<div class="detail-section"><h3>A2A Agent</h3>'
                 html += '<div class="probe-summary">'
                 html += '<div class="field"><span class="label">Agent Name:</span> <span>' + escapeHtml( a2a.summary.agentName || '-' ) + '</span></div>'
+                html += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( a2a.summary.agentDescription || '-' ) + '</span></div>'
+                html += '<div class="field"><span class="label">Version:</span> <span>' + escapeHtml( a2a.summary.agentVersion || '-' ) + '</span></div>'
+
+                if( a2a.summary.provider && ( a2a.summary.provider.organization || a2a.summary.provider.url ) ) {
+                    var providerText = a2a.summary.provider.organization || '-'
+                    html += '<div class="field"><span class="label">Provider:</span> <span>'
+                    if( a2a.summary.provider.url ) {
+                        html += '<a href="' + escapeHtml( a2a.summary.provider.url ) + '" target="_blank" rel="noopener">' + escapeHtml( providerText ) + '</a>'
+                    } else {
+                        html += escapeHtml( providerText )
+                    }
+                    html += '</span></div>'
+                }
+
                 html += '<div class="field"><span class="label">Skills:</span> <span>' + a2a.summary.skillCount + '</span></div>'
 
-                if( a2a.summary.latencyMs !== null ) {
-                    var a2aPct = Math.min( a2a.summary.latencyMs / 5000 * 100, 100 )
-                    html += '<div class="latency-bar">'
-                    html += '<span class="latency-label">Latency:</span>'
-                    html += '<div class="latency-track"><div class="latency-fill" style="width:' + a2aPct + '%"></div></div>'
-                    html += '<span class="latency-value">' + a2a.summary.latencyMs + ' ms</span>'
-                    html += '</div>'
+                if( a2a.summary.skills && a2a.summary.skills.length > 0 ) {
+                    html += '<div class="field"><span class="label">Skill List:</span> <span>'
+                    a2a.summary.skills.forEach( function( skill ) {
+                        html += '<span class="badge badge-blue">' + escapeHtml( skill.name || skill.id || '-' ) + '</span> '
+                    } )
+                    html += '</span></div>'
+                }
+
+                if( a2a.summary.protocolVersion ) {
+                    html += '<div class="field"><span class="label">Protocol Version:</span> <span>' + escapeHtml( a2a.summary.protocolVersion ) + '</span></div>'
                 }
 
                 if( a2a.summary.protocolBindings && a2a.summary.protocolBindings.length > 0 ) {
@@ -276,7 +303,30 @@
                     html += '</span></div>'
                 }
 
-                html += '</div></div>'
+                if( a2a.summary.latencyMs !== null ) {
+                    var a2aPct = Math.min( a2a.summary.latencyMs / 5000 * 100, 100 )
+                    html += '<div class="latency-bar">'
+                    html += '<span class="latency-label">Latency:</span>'
+                    html += '<div class="latency-track"><div class="latency-fill" style="width:' + a2aPct + '%"></div></div>'
+                    html += '<span class="latency-value">' + a2a.summary.latencyMs + ' ms</span>'
+                    html += '</div>'
+                }
+
+                html += '</div>'
+
+                // A2A Categories
+                html += '<h3 style="margin-top:16px">Categories</h3>'
+                html += '<div class="categories-grid">'
+                Object.keys( a2a.categories ).forEach( function( key ) {
+                    var val = a2a.categories[ key ]
+                    var icon = val
+                        ? '<span class="check-yes">&#10003;</span>'
+                        : '<span class="check-no">&#10005;</span>'
+                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
+                } )
+                html += '</div>'
+
+                html += '</div>'
             }
 
             // x402 Detail

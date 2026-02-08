@@ -188,12 +188,24 @@ class Server {
                 hasAgentCard: categories[ 'hasA2aCard' ] || false,
                 hasValidStructure: categories[ 'hasA2aValidStructure' ] || false,
                 hasSkills: categories[ 'hasA2aSkills' ] || false,
-                supportsStreaming: categories[ 'supportsA2aStreaming' ] || false
+                supportsStreaming: categories[ 'supportsA2aStreaming' ] || false,
+                hasSecuritySchemes: categories[ 'hasA2aSecuritySchemes' ] || false,
+                hasProvider: categories[ 'hasA2aProvider' ] || false,
+                supportsPushNotifications: categories[ 'supportsA2aPushNotifications' ] || false,
+                supportsJsonRpc: categories[ 'supportsA2aJsonRpc' ] || false,
+                supportsGrpc: categories[ 'supportsA2aGrpc' ] || false,
+                supportsExtendedCard: categories[ 'supportsA2aExtendedCard' ] || false,
+                hasDocumentation: categories[ 'hasA2aDocumentation' ] || false
             },
             summary: {
                 agentName: a2aEntries[ 'agentName' ] || null,
+                agentDescription: a2aEntries[ 'agentDescription' ] || null,
+                agentVersion: a2aEntries[ 'agentVersion' ] || null,
                 skillCount: a2aEntries[ 'skillCount' ] || 0,
+                skills: a2aEntries[ 'skills' ] || [],
                 protocolBindings: a2aEntries[ 'protocolBindings' ] || [],
+                protocolVersion: a2aEntries[ 'protocolVersion' ] || null,
+                provider: a2aEntries[ 'provider' ] || null,
                 latencyMs: null
             },
             messages: a2aMessages
