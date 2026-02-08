@@ -393,14 +393,12 @@
                         var byNetwork = toolData.byNetwork || {}
 
                         networks.forEach( function( network ) {
-                            var options = byNetwork[ network ] || []
-                            options.forEach( function( opt ) {
-                                var key = network + '|' + ( opt.scheme || '' ) + '|' + ( opt.payTo || '' )
-                                if( !optionGroups[ key ] ) {
-                                    optionGroups[ key ] = { network: network, opt: opt, tools: [] }
-                                }
-                                optionGroups[ key ].tools.push( toolName )
-                            } )
+                            var opt = byNetwork[ network ] || {}
+                            var key = network + '|' + ( opt.scheme || '' ) + '|' + ( opt.payTo || '' )
+                            if( !optionGroups[ key ] ) {
+                                optionGroups[ key ] = { network: network, opt: opt, tools: [] }
+                            }
+                            optionGroups[ key ].tools.push( toolName )
                         } )
                     } )
 
