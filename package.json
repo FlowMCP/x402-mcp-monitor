@@ -1,22 +1,18 @@
 {
-    "name": "x402-mcp-monitor",
-    "version": "0.1.0",
-    "description": "Monitors x402-capable MCP servers across MCP Registry, ERC-8004, and Coinbase Bazaar.",
-    "main": "./src/index.mjs",
+    "name": "mcp-agent-validator",
+    "version": "0.2.0",
+    "description": "Web-based validator for MCP, A2A, x402, OAuth, and MCP Apps endpoints with live server-side probing.",
+    "main": "./src/server/Server.mjs",
     "type": "module",
     "scripts": {
-        "collect": "node src/index.mjs",
-        "precompute": "node scripts/precompute.mjs",
-        "import-dune": "node scripts/import-dune.mjs",
+        "start:dev": "node src/server/Server.mjs",
+        "start:prod": "node src/server/Server.mjs",
         "test": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles",
         "test:coverage:src": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles --coverage --collectCoverageFrom='src/**/*.mjs'",
-        "test:file": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles",
-        "serve": "node src/server/Server.mjs"
+        "test:file": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles"
     },
     "dependencies": {
-        "erc8004-registry-parser": "github:FlowMCP/erc8004-registry-parser#main",
-        "x402-mcp-validator": "github:FlowMCP/x402-mcp-validator#main",
-        "a2a-agent-validator": "github:FlowMCP/a2a-agent-validator#main"
+        "mcp-agent-assessment": "file:../mcp-server-assessment"
     },
     "devDependencies": {
         "jest": "^30.0.5"
@@ -24,10 +20,9 @@
     "keywords": [
         "x402",
         "mcp",
-        "monitor",
-        "erc8004",
+        "validator",
         "a2a",
-        "coinbase-bazaar"
+        "oauth"
     ],
     "license": "MIT"
 }
