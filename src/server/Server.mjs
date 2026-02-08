@@ -153,6 +153,7 @@ class Server {
         const tools = mcpEntries[ 'tools' ] || []
         const x402Tools = x402Data !== null && Array.isArray( x402Data[ 'restrictedCalls' ] ) ? x402Data[ 'restrictedCalls' ] : []
         const x402PaymentRequirements = x402Data !== null && Array.isArray( x402Data[ 'paymentOptions' ] ) ? x402Data[ 'paymentOptions' ] : []
+        const x402PerTool = x402Data !== null && typeof x402Data[ 'perTool' ] === 'object' ? x402Data[ 'perTool' ] : {}
 
         const mcpData = {
             timestamp: entries[ 'timestamp' ],
@@ -184,6 +185,7 @@ class Server {
             tools,
             x402Tools,
             x402PaymentRequirements,
+            x402PerTool,
             messages: ( layers && layers[ 'mcp' ] && layers[ 'mcp' ][ 'messages' ] ) || []
         }
 

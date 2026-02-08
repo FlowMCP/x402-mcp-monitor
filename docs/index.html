@@ -48,6 +48,28 @@
     </div>
 
     <script>
+        // ── Chain Name Mapping ──
+
+        var CHAIN_NAMES = {
+            'eip155:1': 'Ethereum',
+            'eip155:10': 'Optimism',
+            'eip155:137': 'Polygon',
+            'eip155:42161': 'Arbitrum',
+            'eip155:8453': 'Base',
+            'eip155:11155111': 'Ethereum Sepolia',
+            'eip155:84532': 'Base Sepolia',
+            'eip155:421614': 'Arbitrum Sepolia',
+            'eip155:11155420': 'Optimism Sepolia',
+            'solana:mainnet': 'Solana',
+            'solana:devnet': 'Solana Devnet'
+        }
+
+        function chainLabel( caip2 ) {
+            var name = CHAIN_NAMES[ caip2 ]
+
+            return name ? caip2 + ' (' + name + ')' : caip2
+        }
+
         // ── Helpers ──
 
         function escapeHtml( str ) {
@@ -343,7 +365,7 @@
                 if( mcp.summary.networks && mcp.summary.networks.length > 0 ) {
                     html += '<div class="field"><span class="label">Networks:</span> <span>'
                     mcp.summary.networks.forEach( function( n ) {
-                        html += '<span class="badge badge-green">' + escapeHtml( n ) + '</span> '
+                        html += '<span class="badge badge-green">' + escapeHtml( CHAIN_NAMES[ n ] || n ) + '</span> '
                     } )
                     html += '</span></div>'
                 }
@@ -356,14 +378,48 @@
                     html += '</span></div>'
                 }
 
-                // Payment Requirements
-                if( mcp.x402PaymentRequirements && mcp.x402PaymentRequirements.length > 0 ) {
+                // Payment Requirements — per Tool (preferred) or flat fallback
+                var perToolKeys = mcp.x402PerTool ? Object.keys( mcp.x402PerTool ) : []
+
+                if( perToolKeys.length > 0 ) {
+                    html += '</div>'
+                    html += '<h3 style="margin-top:16px">Payment Requirements</h3>'
+
+                    perToolKeys.forEach( function( toolName ) {
+                        var toolData = mcp.x402PerTool[ toolName ]
+                        var networks = toolData.networks || []
+                        var byNetwork = toolData.byNetwork || {}
+
+                        html += '<div class="per-tool-group">'
+                        html += '<div class="per-tool-header">' + escapeHtml( toolName ) + '</div>'
+
+                        networks.forEach( function( network ) {
+                            var options = byNetwork[ network ] || []
+                            html += '<div class="per-tool-network">'
+                            html += '<div class="per-tool-network-label">' + escapeHtml( chainLabel( network ) ) + '</div>'
+
+                            options.forEach( function( opt ) {
+                                var details = []
+                                if( opt.scheme ) { details.push( 'Scheme: ' + opt.scheme ) }
+                                if( opt.amount ) { details.push( 'Amount: ' + opt.amount ) }
+                                if( opt.payTo ) { details.push( 'Pay to: ' + opt.payTo.substring( 0, 10 ) + '...' + opt.payTo.slice( -6 ) ) }
+                                if( opt.maxTimeoutSeconds ) { details.push( 'Timeout: ' + opt.maxTimeoutSeconds + 's' ) }
+
+                                html += '<div class="per-tool-option">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
+                            } )
+
+                            html += '</div>'
+                        } )
+
+                        html += '</div>'
+                    } )
+                } else if( mcp.x402PaymentRequirements && mcp.x402PaymentRequirements.length > 0 ) {
                     html += '</div>'
                     html += '<h3 style="margin-top:16px">Payment Requirements</h3>'
                     html += '<div class="tools-grid">'
                     mcp.x402PaymentRequirements.forEach( function( pr ) {
                         html += '<div class="tool-item x402-tool">'
-                        if( pr.network ) { html += '<div class="tool-name">' + escapeHtml( pr.network ) + '</div>' }
+                        if( pr.network ) { html += '<div class="tool-name">' + escapeHtml( chainLabel( pr.network ) ) + '</div>' }
                         var details = []
                         if( pr.scheme ) { details.push( 'Scheme: ' + pr.scheme ) }
                         if( pr.maxAmountRequired ) { details.push( 'Max: ' + pr.maxAmountRequired ) }
@@ -625,7 +681,7 @@
                         return
                     }
 
-                    var html = info.dependencies
+                    var links = info.dependencies
                         .map( function( dep ) {
                             if( !dep.shortHash || !dep.commitUrl ) {
                                 return '<span class="dep-link">' + escapeHtml( dep.name ) + '</span>'
@@ -636,7 +692,7 @@
                         } )
                         .join( ' &middot; ' )
 
-                    container.innerHTML = html
+                    container.innerHTML = '<span class="dep-info-label">Validation modules</span>' + links
                 } )
                 .catch( function() {} )
         }
