@@ -378,39 +378,52 @@
                     html += '</span></div>'
                 }
 
-                // Payment Requirements — per Tool (preferred) or flat fallback
+                // Payment Options — grouped by unique payment option (preferred) or flat fallback
                 var perToolKeys = mcp.x402PerTool ? Object.keys( mcp.x402PerTool ) : []
 
                 if( perToolKeys.length > 0 ) {
                     html += '</div>'
-                    html += '<h3 style="margin-top:16px">Payment Requirements</h3>'
+                    html += '<h3 style="margin-top:16px">Payment Options</h3>'
 
+                    // Group by unique payment option (network + scheme + payTo)
+                    var optionGroups = {}
                     perToolKeys.forEach( function( toolName ) {
                         var toolData = mcp.x402PerTool[ toolName ]
                         var networks = toolData.networks || []
                         var byNetwork = toolData.byNetwork || {}
 
-                        html += '<div class="per-tool-group">'
-                        html += '<div class="per-tool-header">' + escapeHtml( toolName ) + '</div>'
-
                         networks.forEach( function( network ) {
                             var options = byNetwork[ network ] || []
-                            html += '<div class="per-tool-network">'
-                            html += '<div class="per-tool-network-label">' + escapeHtml( chainLabel( network ) ) + '</div>'
-
                             options.forEach( function( opt ) {
-                                var details = []
-                                if( opt.scheme ) { details.push( 'Scheme: ' + opt.scheme ) }
-                                if( opt.amount ) { details.push( 'Amount: ' + opt.amount ) }
-                                if( opt.payTo ) { details.push( 'Pay to: ' + opt.payTo.substring( 0, 10 ) + '...' + opt.payTo.slice( -6 ) ) }
-                                if( opt.maxTimeoutSeconds ) { details.push( 'Timeout: ' + opt.maxTimeoutSeconds + 's' ) }
-
-                                html += '<div class="per-tool-option">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
+                                var key = network + '|' + ( opt.scheme || '' ) + '|' + ( opt.payTo || '' )
+                                if( !optionGroups[ key ] ) {
+                                    optionGroups[ key ] = { network: network, opt: opt, tools: [] }
+                                }
+                                optionGroups[ key ].tools.push( toolName )
                             } )
-
-                            html += '</div>'
                         } )
+                    } )
 
+                    // Render each unique payment option with its tools
+                    Object.keys( optionGroups ).forEach( function( key ) {
+                        var group = optionGroups[ key ]
+                        var details = []
+                        if( group.opt.scheme ) { details.push( 'Scheme: ' + group.opt.scheme ) }
+                        if( group.opt.amount ) { details.push( 'Amount: ' + group.opt.amount ) }
+                        if( group.opt.payTo ) { details.push( 'Pay to: ' + group.opt.payTo.substring( 0, 10 ) + '...' + group.opt.payTo.slice( -6 ) ) }
+                        if( group.opt.maxTimeoutSeconds ) { details.push( 'Timeout: ' + group.opt.maxTimeoutSeconds + 's' ) }
+
+                        html += '<div class="payment-option-group">'
+                        html += '<div class="payment-option-header">'
+                        html += '<span class="badge badge-green">' + escapeHtml( chainLabel( group.network ) ) + '</span>'
+                        html += '</div>'
+                        html += '<div class="payment-option-details">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
+                        html += '<div class="payment-option-tools">'
+                        html += '<span class="label">Tools (' + group.tools.length + '):</span> '
+                        html += group.tools.map( function( t ) {
+                            return '<span class="tool-tag">' + escapeHtml( t ) + '</span>'
+                        } ).join( ' ' )
+                        html += '</div>'
                         html += '</div>'
                     } )
                 } else if( mcp.x402PaymentRequirements && mcp.x402PaymentRequirements.length > 0 ) {
