@@ -36,11 +36,14 @@
                 <div class="verdict-grid" id="verdictGrid"></div>
                 <div id="detailSections"></div>
             </div>
+
+            <div id="rawAssessmentSection" class="raw-assessment-section" style="display:none"></div>
         </div>
 
         <footer>
             <a href="https://github.com/FlowMCP/mcp-agent-validator">mcp-agent-validator</a> &middot;
             Server-side validation via Node.js probes
+            <div id="depInfo" class="dep-info"></div>
         </footer>
     </div>
 
@@ -62,11 +65,13 @@
         function setValidatorState( state ) {
             var loading = document.getElementById( 'loadingSection' )
             var results = document.getElementById( 'resultsSection' )
+            var rawSection = document.getElementById( 'rawAssessmentSection' )
             var errorBox = document.getElementById( 'errorBox' )
             var btn = document.getElementById( 'validateBtn' )
 
             hide( loading )
             hide( results )
+            hide( rawSection )
             hide( errorBox )
             btn.disabled = false
 
@@ -75,6 +80,7 @@
                 btn.disabled = true
             } else if( state === 'results' ) {
                 show( results )
+                show( rawSection )
             }
         }
 
@@ -583,9 +589,10 @@
                     return
                 }
 
-                setValidatorState( 'results' )
                 renderVerdicts( data.mcp, data.a2a, data.ui, data.oauth || null )
                 renderDetails( data.mcp, data.a2a, data.ui, data.oauth || null )
+                renderRawAssessment( data, rawUrl )
+                setValidatorState( 'results' )
             } catch( err ) {
                 setValidatorState( 'idle' )
                 showError( 'Server error: ' + ( err.message || 'Unknown' ) )
@@ -605,6 +612,98 @@
                 validate()
             } )
         } )
+
+        // ── Dependency Footer ──
+
+        function loadDependencyInfo() {
+            fetch( '/api/info' )
+                .then( function( res ) { return res.json() } )
+                .then( function( info ) {
+                    var container = document.getElementById( 'depInfo' )
+
+                    if( !info.dependencies || info.dependencies.length === 0 ) {
+                        return
+                    }
+
+                    var html = info.dependencies
+                        .map( function( dep ) {
+                            if( !dep.shortHash || !dep.commitUrl ) {
+                                return '<span class="dep-link">' + escapeHtml( dep.name ) + '</span>'
+                            }
+
+                            return '<a class="dep-link" href="' + escapeHtml( dep.commitUrl ) + '" target="_blank" rel="noopener">' +
+                                escapeHtml( dep.name ) + ' <span class="dep-hash">' + escapeHtml( dep.shortHash ) + '</span></a>'
+                        } )
+                        .join( ' &middot; ' )
+
+                    container.innerHTML = html
+                } )
+                .catch( function() {} )
+        }
+
+        loadDependencyInfo()
+
+        // ── Raw Assessment Viewer ──
+
+        function renderRawAssessment( data, url ) {
+            var container = document.getElementById( 'rawAssessmentSection' )
+            var jsonStr = JSON.stringify( data, null, 2 )
+
+            var hostname = ''
+            try {
+                hostname = new URL( url ).hostname
+            } catch( _e ) {
+                hostname = 'unknown'
+            }
+
+            var timestamp = new Date().toISOString().replace( /[:.]/g, '-' ).slice( 0, 19 )
+            var filename = 'assessment-' + hostname + '-' + timestamp + '.json'
+
+            var html = '<div class="raw-toggle" id="rawToggle">' +
+                '<span class="raw-arrow" id="rawArrow">&#9654;</span> Raw Assessment' +
+                '</div>' +
+                '<div class="raw-content" id="rawContent" style="display:none">' +
+                '<div class="raw-actions">' +
+                '<button class="raw-btn" id="rawCopyBtn">Copy</button>' +
+                '<button class="raw-btn" id="rawDownloadBtn">Download</button>' +
+                '</div>' +
+                '<pre><code>' + escapeHtml( jsonStr ) + '</code></pre>' +
+                '</div>'
+
+            container.innerHTML = html
+
+            document.getElementById( 'rawToggle' ).addEventListener( 'click', function() {
+                var content = document.getElementById( 'rawContent' )
+                var arrow = document.getElementById( 'rawArrow' )
+
+                if( content.style.display === 'none' ) {
+                    content.style.display = 'block'
+                    arrow.innerHTML = '&#9660;'
+                } else {
+                    content.style.display = 'none'
+                    arrow.innerHTML = '&#9654;'
+                }
+            } )
+
+            document.getElementById( 'rawCopyBtn' ).addEventListener( 'click', function() {
+                var btn = this
+                navigator.clipboard.writeText( jsonStr ).then( function() {
+                    btn.textContent = 'Copied!'
+                    setTimeout( function() { btn.textContent = 'Copy' }, 2000 )
+                } )
+            } )
+
+            document.getElementById( 'rawDownloadBtn' ).addEventListener( 'click', function() {
+                var blob = new Blob( [ jsonStr ], { type: 'application/json' } )
+                var a = document.createElement( 'a' )
+                a.href = URL.createObjectURL( blob )
+                a.download = filename
+                document.body.appendChild( a )
+                a.click()
+                document.body.removeChild( a )
+                URL.revokeObjectURL( a.href )
+            } )
+        }
 
     </script>
 </body>

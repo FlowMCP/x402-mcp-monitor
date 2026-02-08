@@ -1,9 +1,11 @@
 import { EventEmitter } from 'node:events'
+import { readFileSync as realReadFileSync } from 'node:fs'
 import { jest } from '@jest/globals'
 
 
 let requestHandler
 let McpAgentAssessment
+let mockReadFileSync
 
 
 function createMockRequest( { method, url, body = null, headers = {} } ) {
@@ -127,8 +129,46 @@ const MOCK_ASSESSMENT = {
 }
 
 
+const MOCK_LOCK = JSON.stringify( {
+    packages: {
+        'node_modules/mcp-agent-assessment': {
+            version: '0.1.0',
+            resolved: 'git+ssh://git@github.com/FlowMCP/mcp-agent-assessment.git#15bb11eb59d99b2efa546756c07d2ded477f39d4'
+        },
+        'node_modules/a2a-agent-validator': {
+            version: '0.1.0',
+            resolved: 'git+ssh://git@github.com/FlowMCP/a2a-agent-validator.git#eefae699ab6f2e61f5f53834071a2a2fac7bff10'
+        },
+        'node_modules/x402-mcp-validator': {
+            version: '0.1.0',
+            resolved: 'git+ssh://git@github.com/FlowMCP/x402-mcp-validator.git#cf074bd99f86c7c731b2d721d4e63b5c6748cebf'
+        },
+        'node_modules/mcp-apps-validator': {
+            version: '0.1.0',
+            resolved: 'git+ssh://git@github.com/FlowMCP/mcp-apps-validator.git#df6009ac46f0c70e30ee966985342ef0a6441065'
+        },
+        'node_modules/erc8004-registry-parser': {
+            version: '0.1.0',
+            resolved: 'git+ssh://git@github.com/FlowMCP/erc8004-registry-parser.git#922eb6556a0c93be76b2a9e56582827f4ba38297'
+        }
+    }
+} )
+
+
 beforeAll( async () => {
     jest.spyOn( console, 'log' ).mockImplementation( () => {} )
+
+    mockReadFileSync = jest.fn( ( filePath, encoding ) => {
+        if( typeof filePath === 'string' && filePath.endsWith( 'package-lock.json' ) ) {
+            return MOCK_LOCK
+        }
+
+        return realReadFileSync( filePath, encoding )
+    } )
+
+    jest.unstable_mockModule( 'node:fs', () => ( {
+        readFileSync: mockReadFileSync
+    } ) )
 
     jest.unstable_mockModule( 'node:http', () => ( {
         createServer: jest.fn( ( handler ) => {
@@ -193,6 +233,46 @@ describe( 'Server', () => {
 
             expect( response.statusCode ).toBe( 404 )
             expect( response.body ).toBe( 'Not Found' )
+        } )
+    } )
+
+
+    describe( 'GET /api/info', () => {
+        test( 'returns dependency info with hashes and commit URLs', async () => {
+            const request = createMockRequest( { method: 'GET', url: '/api/info' } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 200 )
+
+            const data = JSON.parse( response.body )
+            expect( data.dependencies ).toBeDefined()
+            expect( data.dependencies ).toHaveLength( 5 )
+
+            const assessment = data.dependencies.find( ( d ) => d.name === 'mcp-agent-assessment' )
+            expect( assessment.shortHash ).toBe( '15bb11e' )
+            expect( assessment.commitUrl ).toBe( 'https://github.com/FlowMCP/mcp-agent-assessment/commit/15bb11eb59d99b2efa546756c07d2ded477f39d4' )
+            expect( assessment.version ).toBe( '0.1.0' )
+
+            const a2a = data.dependencies.find( ( d ) => d.name === 'a2a-agent-validator' )
+            expect( a2a.shortHash ).toBe( 'eefae69' )
+            expect( a2a.commitUrl ).toContain( 'FlowMCP/a2a-agent-validator/commit/' )
+        } )
+
+
+        test( 'does not require authentication', async () => {
+            process.env.API_TOKEN = 'test-secret-token'
+
+            const request = createMockRequest( { method: 'GET', url: '/api/info' } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 200 )
+
+            const data = JSON.parse( response.body )
+            expect( data.dependencies ).toBeDefined()
         } )
     } )
 

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,9 +15,11 @@ const DOCS_PATH = join( __dirname, '..', '..', 'docs' )
 
 class Server {
     static #sessionToken = randomUUID()
+    static #dependencyInfo = null
 
 
     static start( { port = 3000 } = {} ) {
+        Server.#loadDependencyInfo()
         const server = createServer( async ( request, response ) => {
             try {
                 await Server.#route( { request, response } )
@@ -68,6 +71,12 @@ class Server {
         if( method === 'POST' && url === '/api/validate' ) {
             const { body } = await Server.#readBody( { request } )
             await Server.#handleValidate( { body, response } )
+
+            return
+        }
+
+        if( method === 'GET' && url === '/api/info' ) {
+            Server.#sendJson( { response, statusCode: 200, data: Server.#dependencyInfo } )
 
             return
         }
@@ -380,6 +389,48 @@ class Server {
             'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         } )
         response.end( json )
+    }
+
+
+    static #loadDependencyInfo() {
+        if( Server.#dependencyInfo !== null ) {
+            return
+        }
+
+        const lockPath = join( __dirname, '..', '..', 'package-lock.json' )
+        const depNames = [
+            'mcp-agent-assessment',
+            'a2a-agent-validator',
+            'x402-mcp-validator',
+            'mcp-apps-validator',
+            'erc8004-registry-parser'
+        ]
+
+        try {
+            const lockContent = JSON.parse( readFileSync( lockPath, 'utf-8' ) )
+            const packages = lockContent[ 'packages' ] || {}
+
+            const dependencies = depNames
+                .map( ( name ) => {
+                    const entry = packages[ `node_modules/${name}` ]
+
+                    if( !entry || !entry[ 'resolved' ] ) {
+                        return { name, version: entry ? ( entry[ 'version' ] || null ) : null, shortHash: null, commitUrl: null }
+                    }
+
+                    const resolved = entry[ 'resolved' ]
+                    const hashIndex = resolved.lastIndexOf( '#' )
+                    const fullHash = hashIndex !== -1 ? resolved.slice( hashIndex + 1 ) : null
+                    const shortHash = fullHash ? fullHash.slice( 0, 7 ) : null
+                    const commitUrl = fullHash ? `https://github.com/FlowMCP/${name}/commit/${fullHash}` : null
+
+                    return { name, version: entry[ 'version' ] || null, shortHash, commitUrl }
+                } )
+
+            Server.#dependencyInfo = { dependencies }
+        } catch( _err ) {
+            Server.#dependencyInfo = { dependencies: [] }
+        }
     }
 }
 
