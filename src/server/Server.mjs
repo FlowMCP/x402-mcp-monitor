@@ -1,10 +1,10 @@
+import { randomUUID } from 'node:crypto'
 import { createServer } from 'node:http'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { McpServerValidator } from 'x402-mcp-validator'
+import { McpAgentAssessment } from 'mcp-agent-assessment'
 
-import { A2aProbe } from '../prober/A2aProbe.mjs'
 import { StaticFiles } from './StaticFiles.mjs'
 
 
@@ -13,6 +13,7 @@ const DOCS_PATH = join( __dirname, '..', '..', 'docs' )
 
 
 class Server {
+    static #sessionToken = randomUUID()
 
 
     static start( { port = 3000 } = {} ) {
@@ -26,7 +27,7 @@ class Server {
         } )
 
         server.listen( port, () => {
-            console.log( `x402 Validator running on http://localhost:${port}` )
+            console.log( `MCP Agent Validator running on http://localhost:${port}` )
         } )
 
         return { server }
@@ -37,6 +38,7 @@ class Server {
         const { method, url } = request
 
         if( method === 'GET' && url === '/' ) {
+            response.setHeader( 'Set-Cookie', `__session=${Server.#sessionToken}; HttpOnly; SameSite=Strict; Path=/` )
             await StaticFiles.serve( { basePath: DOCS_PATH, filePath: 'index.html', response } )
 
             return
@@ -48,16 +50,24 @@ class Server {
             return
         }
 
-        if( method === 'POST' && url === '/api/validate' ) {
+        if( method === 'POST' && url.startsWith( '/api/' ) ) {
+            const { authenticated } = Server.#authenticate( { request, response } )
+
+            if( !authenticated ) {
+                return
+            }
+        }
+
+        if( method === 'POST' && url === '/api/assess' ) {
             const { body } = await Server.#readBody( { request } )
-            await Server.#handleValidate( { body, response } )
+            await Server.#handleAssess( { body, response } )
 
             return
         }
 
-        if( method === 'POST' && url === '/api/erc8004/validate' ) {
+        if( method === 'POST' && url === '/api/validate' ) {
             const { body } = await Server.#readBody( { request } )
-            await Server.#handleErc8004Validate( { body, response } )
+            await Server.#handleValidate( { body, response } )
 
             return
         }
@@ -66,7 +76,7 @@ class Server {
             response.writeHead( 204, {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
                 'Access-Control-Max-Age': '86400'
             } )
             response.end()
@@ -79,167 +89,204 @@ class Server {
     }
 
 
-    static async #handleValidate( { body, response } ) {
-        const { url } = body
+    static async #handleAssess( { body, response } ) {
+        const { url, timeout, erc8004 } = body
 
-        if( !url || typeof url !== 'string' ) {
-            Server.#sendJson( { response, statusCode: 400, data: { error: 'Missing or invalid "url" parameter' } } )
+        const { error } = Server.#validateUrl( { url } )
+
+        if( error ) {
+            Server.#sendJson( { response, statusCode: 400, data: { error } } )
 
             return
         }
 
-        if( !url.startsWith( 'https://' ) && !url.startsWith( 'http://' ) ) {
-            Server.#sendJson( { response, statusCode: 400, data: { error: 'Only http:// and https:// URLs are allowed' } } )
+        const assessOptions = { endpoint: url }
+
+        if( timeout !== undefined && typeof timeout === 'number' && timeout > 0 ) {
+            assessOptions[ 'timeout' ] = timeout
+        }
+
+        if( erc8004 !== undefined && erc8004 !== null && typeof erc8004 === 'object' ) {
+            assessOptions[ 'erc8004' ] = erc8004
+        }
+
+        const result = await McpAgentAssessment.assess( assessOptions )
+
+        Server.#sendJson( { response, statusCode: 200, data: result } )
+    }
+
+
+    static async #handleValidate( { body, response } ) {
+        const { url } = body
+
+        const { error } = Server.#validateUrl( { url } )
+
+        if( error ) {
+            Server.#sendJson( { response, statusCode: 400, data: { error } } )
 
             return
+        }
+
+        const assessment = await McpAgentAssessment.assess( { endpoint: url } )
+
+        const { data } = Server.#assessmentToLegacyFormat( { assessment } )
+
+        Server.#sendJson( { response, statusCode: 200, data } )
+    }
+
+
+    static #assessmentToLegacyFormat( { assessment } ) {
+        const { categories, entries, messages, layers } = assessment
+        const mcpEntries = entries[ 'mcp' ] || {}
+        const a2aEntries = entries[ 'a2a' ] || {}
+
+        const x402Data = mcpEntries[ 'x402' ] || null
+        const tools = mcpEntries[ 'tools' ] || []
+        const x402Tools = x402Data !== null && Array.isArray( x402Data[ 'tools' ] ) ? x402Data[ 'tools' ] : []
+        const x402PaymentRequirements = x402Data !== null && Array.isArray( x402Data[ 'paymentRequirements' ] ) ? x402Data[ 'paymentRequirements' ] : []
+
+        const mcpData = {
+            timestamp: entries[ 'timestamp' ],
+            status: categories[ 'supportsMcp' ] || false,
+            categories: {
+                isReachable: categories[ 'isReachable' ] || false,
+                supportsMcp: categories[ 'supportsMcp' ] || false,
+                hasTools: categories[ 'hasTools' ] || false,
+                hasResources: categories[ 'hasResources' ] || false,
+                hasPrompts: categories[ 'hasPrompts' ] || false,
+                supportsX402: categories[ 'supportsX402' ] || false,
+                hasValidPaymentRequirements: categories[ 'hasValidPaymentRequirements' ] || false,
+                supportsExactScheme: categories[ 'supportsExactScheme' ] || false,
+                supportsEvm: categories[ 'supportsEvm' ] || false,
+                supportsSolana: categories[ 'supportsSolana' ] || false
+            },
+            summary: {
+                serverName: mcpEntries[ 'serverName' ] || null,
+                serverVersion: mcpEntries[ 'serverVersion' ] || null,
+                toolCount: mcpEntries[ 'toolCount' ] || 0,
+                resourceCount: mcpEntries[ 'resourceCount' ] || 0,
+                promptCount: mcpEntries[ 'promptCount' ] || 0,
+                x402ToolCount: x402Tools.length,
+                networks: x402Data !== null && Array.isArray( x402Data[ 'networks' ] ) ? x402Data[ 'networks' ] : [],
+                schemes: x402Data !== null && Array.isArray( x402Data[ 'schemes' ] ) ? x402Data[ 'schemes' ] : [],
+                latencyPingMs: null,
+                latencyListToolsMs: null
+            },
+            tools,
+            x402Tools,
+            x402PaymentRequirements,
+            messages: ( layers && layers[ 'mcp' ] && layers[ 'mcp' ][ 'messages' ] ) || []
+        }
+
+        const a2aMessages = ( layers && layers[ 'a2a' ] && layers[ 'a2a' ][ 'messages' ] ) || []
+        const filteredA2aMessages = a2aMessages
+            .filter( ( msg ) => {
+                const isInternal = typeof msg === 'string' && msg.indexOf( 'Cannot read properties' ) !== -1
+
+                return !isInternal
+            } )
+
+        const a2aData = {
+            timestamp: entries[ 'timestamp' ],
+            status: categories[ 'hasA2aCard' ] || false,
+            categories: {
+                isReachable: categories[ 'hasA2aCard' ] || false,
+                hasAgentCard: categories[ 'hasA2aCard' ] || false,
+                hasValidStructure: categories[ 'hasA2aValidStructure' ] || false,
+                hasSkills: categories[ 'hasA2aSkills' ] || false,
+                supportsStreaming: categories[ 'supportsA2aStreaming' ] || false
+            },
+            summary: {
+                agentName: a2aEntries[ 'agentName' ] || null,
+                skillCount: a2aEntries[ 'skillCount' ] || 0,
+                protocolBindings: a2aEntries[ 'protocolBindings' ] || [],
+                latencyMs: null
+            },
+            messages: filteredA2aMessages
+        }
+
+        const uiEntries = entries[ 'ui' ] || null
+        const uiMessages = ( layers && layers[ 'ui' ] && layers[ 'ui' ][ 'messages' ] ) || []
+
+        const uiData = {
+            timestamp: entries[ 'timestamp' ],
+            status: categories[ 'uiSupportsMcpApps' ] || false,
+            categories: {
+                supportsMcpApps: categories[ 'uiSupportsMcpApps' ] || false,
+                hasUiResources: categories[ 'uiHasUiResources' ] || false,
+                hasToolLinkage: categories[ 'uiHasToolLinkage' ] || false,
+                hasValidHtml: categories[ 'uiHasValidHtml' ] || false,
+                hasValidCsp: categories[ 'uiHasValidCsp' ] || false,
+                supportsTheming: categories[ 'uiSupportsTheming' ] || false
+            },
+            summary: {
+                extensionVersion: uiEntries !== null ? ( uiEntries[ 'extensionVersion' ] || null ) : null,
+                uiResourceCount: uiEntries !== null ? ( uiEntries[ 'uiResourceCount' ] || 0 ) : 0,
+                uiLinkedToolCount: uiEntries !== null ? ( uiEntries[ 'uiLinkedToolCount' ] || 0 ) : 0,
+                appOnlyToolCount: uiEntries !== null ? ( uiEntries[ 'appOnlyToolCount' ] || 0 ) : 0,
+                displayModes: uiEntries !== null && Array.isArray( uiEntries[ 'displayModes' ] ) ? uiEntries[ 'displayModes' ] : []
+            },
+            uiResources: uiEntries !== null && Array.isArray( uiEntries[ 'uiResources' ] ) ? uiEntries[ 'uiResources' ] : [],
+            uiLinkedTools: uiEntries !== null && Array.isArray( uiEntries[ 'uiLinkedTools' ] ) ? uiEntries[ 'uiLinkedTools' ] : [],
+            cspSummary: uiEntries !== null && uiEntries[ 'cspSummary' ] ? uiEntries[ 'cspSummary' ] : null,
+            permissionsSummary: uiEntries !== null && Array.isArray( uiEntries[ 'permissionsSummary' ] ) ? uiEntries[ 'permissionsSummary' ] : [],
+            messages: uiMessages
+        }
+
+        const oauthEntries = mcpEntries[ 'oauth' ] || null
+
+        const oauthData = {
+            timestamp: entries[ 'timestamp' ],
+            status: categories[ 'supportsOAuth' ] || false,
+            categories: {
+                supportsOAuth: categories[ 'supportsOAuth' ] || false,
+                hasProtectedResourceMetadata: categories[ 'hasProtectedResourceMetadata' ] || false,
+                hasAuthServerMetadata: categories[ 'hasAuthServerMetadata' ] || false,
+                supportsPkce: categories[ 'supportsPkce' ] || false,
+                hasDynamicRegistration: categories[ 'hasDynamicRegistration' ] || false,
+                hasValidOAuthConfig: categories[ 'hasValidOAuthConfig' ] || false
+            },
+            summary: {
+                issuer: oauthEntries !== null ? ( oauthEntries[ 'issuer' ] || null ) : null,
+                authorizationEndpoint: oauthEntries !== null ? ( oauthEntries[ 'authorizationEndpoint' ] || null ) : null,
+                tokenEndpoint: oauthEntries !== null ? ( oauthEntries[ 'tokenEndpoint' ] || null ) : null,
+                registrationEndpoint: oauthEntries !== null ? ( oauthEntries[ 'registrationEndpoint' ] || null ) : null,
+                scopesSupported: oauthEntries !== null && Array.isArray( oauthEntries[ 'scopesSupported' ] ) ? oauthEntries[ 'scopesSupported' ] : [],
+                grantTypesSupported: oauthEntries !== null && Array.isArray( oauthEntries[ 'grantTypesSupported' ] ) ? oauthEntries[ 'grantTypesSupported' ] : [],
+                pkceMethodsSupported: oauthEntries !== null && Array.isArray( oauthEntries[ 'pkceMethodsSupported' ] ) ? oauthEntries[ 'pkceMethodsSupported' ] : []
+            },
+            messages: ( layers && layers[ 'mcp' ] && layers[ 'mcp' ][ 'messages' ] )
+                ? layers[ 'mcp' ][ 'messages' ]
+                    .filter( ( msg ) => {
+                        const isAuth = typeof msg === 'string' && msg.startsWith( 'AUTH-' )
+
+                        return isAuth
+                    } )
+                : []
+        }
+
+        const data = { mcp: mcpData, a2a: a2aData, ui: uiData, oauth: oauthData }
+
+        return { data }
+    }
+
+
+    static #validateUrl( { url } ) {
+        if( !url || typeof url !== 'string' ) {
+            return { error: 'Missing or invalid "url" parameter' }
+        }
+
+        if( !url.startsWith( 'https://' ) && !url.startsWith( 'http://' ) ) {
+            return { error: 'Only http:// and https:// URLs are allowed' }
         }
 
         try {
             new URL( url )
         } catch( _e ) {
-            Server.#sendJson( { response, statusCode: 400, data: { error: 'Invalid URL format' } } )
-
-            return
+            return { error: 'Invalid URL format' }
         }
 
-        const [ mcpData, a2aResult ] = await Promise.all( [
-            Server.#probeMcp( { endpoint: url } ),
-            A2aProbe.probe( { endpoint: url } )
-        ] )
-
-        const { probeResult: a2aProbe } = a2aResult
-        const a2aMessages = a2aProbe.messages
-            .filter( ( msg ) => msg.indexOf( 'Cannot read properties' ) === -1 )
-
-        const data = {
-            mcp: mcpData,
-            a2a: { ...a2aProbe, messages: a2aMessages }
-        }
-
-        Server.#sendJson( { response, statusCode: 200, data } )
-    }
-
-
-    static async #probeMcp( { endpoint, timeout = 15000 } ) {
-        try {
-            const startPing = Date.now()
-            const pingResponse = await fetch( endpoint, {
-                method: 'HEAD',
-                signal: AbortSignal.timeout( timeout )
-            } ).catch( () => null )
-            const latencyPingMs = Date.now() - startPing
-
-            const startListTools = Date.now()
-            const { status: validatorStatus, messages: validatorMessages, categories: validatorCategories, entries } = await McpServerValidator.start( {
-                endpoint,
-                timeout
-            } )
-            const latencyListToolsMs = Date.now() - startListTools
-
-            const isReachable = pingResponse !== null || validatorStatus
-            const hasTools = entries !== null && entries[ 'tools' ] !== undefined && entries[ 'tools' ].length > 0
-            const supportsX402 = validatorCategories !== null && validatorCategories[ 'supportsX402' ] === true
-
-            const categories = {
-                isReachable,
-                supportsMcp: validatorStatus,
-                hasTools,
-                hasResources: entries !== null && entries[ 'resources' ] !== undefined && entries[ 'resources' ].length > 0,
-                hasPrompts: entries !== null && entries[ 'prompts' ] !== undefined && entries[ 'prompts' ].length > 0,
-                supportsX402,
-                hasValidPaymentRequirements: validatorCategories !== null && validatorCategories[ 'hasValidPaymentRequirements' ] === true,
-                supportsExactScheme: validatorCategories !== null && validatorCategories[ 'supportsExactScheme' ] === true,
-                supportsEvm: validatorCategories !== null && validatorCategories[ 'supportsEvm' ] === true,
-                supportsSolana: validatorCategories !== null && validatorCategories[ 'supportsSolana' ] === true
-            }
-
-            const x402Data = entries !== null ? entries[ 'x402' ] : null
-            const tools = hasTools ? entries[ 'tools' ] : []
-
-            const summary = {
-                serverName: entries !== null ? entries[ 'serverName' ] : null,
-                serverVersion: entries !== null ? entries[ 'serverVersion' ] : null,
-                toolCount: tools.length,
-                resourceCount: categories.hasResources ? entries[ 'resources' ].length : 0,
-                promptCount: categories.hasPrompts ? entries[ 'prompts' ].length : 0,
-                x402ToolCount: x402Data !== null && x402Data[ 'tools' ] !== undefined ? x402Data[ 'tools' ].length : 0,
-                networks: x402Data !== null && x402Data[ 'networks' ] !== undefined ? x402Data[ 'networks' ] : [],
-                schemes: x402Data !== null && x402Data[ 'schemes' ] !== undefined ? x402Data[ 'schemes' ] : [],
-                latencyPingMs,
-                latencyListToolsMs
-            }
-
-            const x402Tools = x402Data !== null && x402Data[ 'tools' ] !== undefined ? x402Data[ 'tools' ] : []
-            const x402PaymentRequirements = x402Data !== null && x402Data[ 'paymentRequirements' ] !== undefined ? x402Data[ 'paymentRequirements' ] : []
-
-            return {
-                timestamp: new Date().toISOString(),
-                status: validatorStatus,
-                categories,
-                summary,
-                tools,
-                x402Tools,
-                x402PaymentRequirements,
-                messages: validatorMessages
-            }
-        } catch( error ) {
-            return {
-                timestamp: new Date().toISOString(),
-                status: false,
-                categories: {
-                    isReachable: false, supportsMcp: false, hasTools: false,
-                    hasResources: false, hasPrompts: false, supportsX402: false,
-                    hasValidPaymentRequirements: false, supportsExactScheme: false,
-                    supportsEvm: false, supportsSolana: false
-                },
-                summary: {
-                    serverName: null, serverVersion: null, toolCount: 0,
-                    resourceCount: 0, promptCount: 0, x402ToolCount: 0,
-                    networks: [], schemes: [], latencyPingMs: null, latencyListToolsMs: null
-                },
-                tools: [],
-                x402Tools: [],
-                x402PaymentRequirements: [],
-                messages: [ error.message ]
-            }
-        }
-    }
-
-
-    static async #handleErc8004Validate( { body, response } ) {
-        const { registrationFile } = body
-
-        if( !registrationFile || typeof registrationFile !== 'object' || Array.isArray( registrationFile ) ) {
-            Server.#sendJson( { response, statusCode: 400, data: { error: 'Missing or invalid "registrationFile" parameter' } } )
-
-            return
-        }
-
-        const jsonString = JSON.stringify( registrationFile )
-        const base64String = Buffer.from( jsonString ).toString( 'base64' )
-        const encodedUri = `data:application/json;base64,${base64String}`
-
-        let result
-
-        try {
-            const { Erc8004RegistryParser } = await import( 'erc8004-registry-parser' )
-            result = Erc8004RegistryParser.validateFromUri( { agentUri: encodedUri } )
-        } catch( err ) {
-            Server.#sendJson( { response, statusCode: 200, data: {
-                status: false,
-                messages: [ err.message ],
-                categories: {},
-                entries: {},
-                encodedUri
-            } } )
-
-            return
-        }
-
-        const { status, messages, categories, entries } = result
-        const data = { status, messages, categories, entries, encodedUri }
-
-        Server.#sendJson( { response, statusCode: 200, data } )
+        return { error: null }
     }
 
 
@@ -280,6 +327,43 @@ class Server {
     }
 
 
+    static #authenticate( { request, response } ) {
+        const apiToken = process.env.API_TOKEN
+
+        if( !apiToken ) {
+            return { authenticated: true }
+        }
+
+        const cookieHeader = request.headers[ 'cookie' ] || ''
+        const { sessionToken } = Server.#parseCookie( { cookieHeader, name: '__session' } )
+
+        if( sessionToken === Server.#sessionToken ) {
+            return { authenticated: true }
+        }
+
+        const authHeader = request.headers[ 'authorization' ] || ''
+        const bearerToken = authHeader.startsWith( 'Bearer ' ) ? authHeader.slice( 7 ) : ''
+
+        if( bearerToken === apiToken ) {
+            return { authenticated: true }
+        }
+
+        Server.#sendJson( { response, statusCode: 401, data: { error: 'Unauthorized' } } )
+
+        return { authenticated: false }
+    }
+
+
+    static #parseCookie( { cookieHeader, name } ) {
+        const match = cookieHeader
+            .split( '; ' )
+            .find( ( pair ) => pair.startsWith( `${name}=` ) )
+        const sessionToken = match ? match.slice( name.length + 1 ) : ''
+
+        return { sessionToken }
+    }
+
+
     static #sendJson( { response, statusCode, data } ) {
         const json = JSON.stringify( data )
 
@@ -287,12 +371,12 @@ class Server {
             'Content-Type': 'application/json; charset=utf-8',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         } )
         response.end( json )
     }
 }
 
 
-const port = parseInt( process.env.PORT || '3000', 10 )
+const port = parseInt( process.env.PORT || '4000', 10 )
 Server.start( { port } )

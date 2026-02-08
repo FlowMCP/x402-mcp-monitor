@@ -3,23 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>x402 Endpoint Validator</title>
+    <title>MCP Agent Validator</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>x402 Endpoint Validator</h1>
-            <p class="subtitle">Validate MCP, A2A, and x402 endpoints &middot; Build ERC-8004 registration metadata</p>
+            <h1>MCP Agent Validator</h1>
+            <p class="subtitle">Validate MCP, A2A, x402, OAuth, and MCP Apps endpoints</p>
         </header>
 
-        <div class="tab-nav">
-            <button class="tab-btn active" data-tab="validate">Validate Endpoint</button>
-            <button class="tab-btn" data-tab="erc8004">Register on ERC-8004</button>
-        </div>
-
-        <!-- Tab 1: Validate Endpoint -->
-        <div class="tab-content active" id="tab-validate">
+        <div>
             <div class="validator-input">
                 <input type="text" id="urlInput" placeholder="https://your-endpoint.example.com" spellcheck="false">
                 <button class="validator-btn" id="validateBtn">Validate</button>
@@ -27,7 +21,8 @@
 
             <div class="example-urls">
                 <span>Try:</span>
-                <a data-url="https://x402.flowmcp.org">x402.flowmcp.org</a>
+                <a data-url="https://x402.flowmcp.org/mcp/streamable">x402.flowmcp.org/mcp/streamable</a>
+                <a data-url="https://blackjack.nanobot.ai/mcp">blackjack.nanobot.ai/mcp</a>
             </div>
 
             <div class="error-message" id="errorBox"></div>
@@ -43,66 +38,8 @@
             </div>
         </div>
 
-        <!-- Tab 2: ERC-8004 Metadata Builder -->
-        <div class="tab-content" id="tab-erc8004">
-            <div class="detail-section">
-                <h3>Registration File</h3>
-
-                <div class="form-group">
-                    <label class="form-label">Name *</label>
-                    <input type="text" class="form-input" id="regName" placeholder="My Agent">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Description *</label>
-                    <textarea class="form-textarea" id="regDescription" placeholder="A brief description of your agent"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Image URL</label>
-                    <input type="text" class="form-input" id="regImage" placeholder="https://example.com/agent-logo.png">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Services</label>
-                    <div class="service-rows" id="serviceRows"></div>
-                    <button class="add-service-btn" id="addServiceBtn">+ Add Service</button>
-                </div>
-
-                <div class="form-group">
-                    <div class="form-checkbox-row">
-                        <input type="checkbox" id="regX402">
-                        <label for="regX402">x402 Payment Support</label>
-                    </div>
-                    <div class="form-checkbox-row">
-                        <input type="checkbox" id="regActive" checked>
-                        <label for="regActive">Active</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="detail-section">
-                <div class="section-header">
-                    <h3>JSON Preview</h3>
-                    <button class="copy-btn" id="copyJsonBtn">Copy JSON</button>
-                </div>
-                <div class="json-preview" id="jsonPreview">{}</div>
-            </div>
-
-            <div style="text-align:center; margin-bottom:24px;">
-                <button class="validator-btn" id="erc8004ValidateBtn">Validate Registration</button>
-            </div>
-
-            <div class="loading-section" id="erc8004Loading">
-                <div class="loading-spinner"></div>
-                <div class="loading-text">Validating registration file...</div>
-            </div>
-
-            <div id="erc8004Results"></div>
-        </div>
-
         <footer>
-            <a href="https://github.com/FlowMCP/x402-mcp-monitor">x402-mcp-monitor</a> &middot;
+            <a href="https://github.com/FlowMCP/mcp-agent-validator">mcp-agent-validator</a> &middot;
             Server-side validation via Node.js probes
         </footer>
     </div>
@@ -120,20 +57,7 @@
         function show( el ) { el.style.display = 'block' }
         function hide( el ) { el.style.display = 'none' }
 
-        // ── Tab Navigation ──
-
-        document.querySelectorAll( '.tab-btn' ).forEach( function( btn ) {
-            btn.addEventListener( 'click', function() {
-                document.querySelectorAll( '.tab-btn' ).forEach( function( b ) { b.classList.remove( 'active' ) } )
-                document.querySelectorAll( '.tab-content' ).forEach( function( c ) { c.classList.remove( 'active' ) } )
-                btn.classList.add( 'active' )
-                document.getElementById( 'tab-' + btn.getAttribute( 'data-tab' ) ).classList.add( 'active' )
-            } )
-        } )
-
-        // ══════════════════════════════════════
-        //  TAB 1: Endpoint Validator
-        // ══════════════════════════════════════
+        // ── Endpoint Validator ──
 
         function setValidatorState( state ) {
             var loading = document.getElementById( 'loadingSection' )
@@ -186,11 +110,12 @@
             return parts.length > 0 ? parts.join( ' · ' ) : 'Supported'
         }
 
-        function renderVerdicts( mcp, a2a ) {
+        function renderVerdicts( mcp, a2a, ui, oauth ) {
             var grid = document.getElementById( 'verdictGrid' )
 
             var mcpDetected = isMcpDetected( mcp )
             var x402Detected = mcp.categories && mcp.categories.supportsX402
+            var oauthDetected = oauth && oauth.status
 
             var cards = [
                 {
@@ -213,6 +138,20 @@
                     detail: x402Detected
                         ? buildX402Detail( mcp )
                         : 'Not detected'
+                },
+                {
+                    label: 'OAuth',
+                    pass: oauthDetected,
+                    detail: oauthDetected
+                        ? ( oauth.summary.issuer || 'OAuth detected' )
+                        : 'Not required'
+                },
+                {
+                    label: 'MCP Apps',
+                    pass: ui.categories && ui.categories.supportsMcpApps,
+                    detail: ui.categories && ui.categories.supportsMcpApps
+                        ? ui.summary.uiResourceCount + ' UI resource' + ( ui.summary.uiResourceCount !== 1 ? 's' : '' )
+                        : 'Not detected'
                 }
             ]
 
@@ -230,7 +169,7 @@
             } ).join( '' )
         }
 
-        function renderDetails( mcp, a2a ) {
+        function renderDetails( mcp, a2a, ui, oauth ) {
             var container = document.getElementById( 'detailSections' )
             var html = ''
 
@@ -387,11 +326,164 @@
                 html += '</div>'
             }
 
+            // OAuth Detail
+            if( oauth && oauth.status ) {
+                html += '<div class="detail-section"><h3>OAuth / Authorization</h3>'
+                html += '<div class="probe-summary">'
+                html += '<div class="field"><span class="label">Issuer:</span> <span>' + escapeHtml( oauth.summary.issuer || '-' ) + '</span></div>'
+                html += '<div class="field"><span class="label">Authorization Endpoint:</span> <span>' + escapeHtml( oauth.summary.authorizationEndpoint || '-' ) + '</span></div>'
+                html += '<div class="field"><span class="label">Token Endpoint:</span> <span>' + escapeHtml( oauth.summary.tokenEndpoint || '-' ) + '</span></div>'
+
+                if( oauth.summary.registrationEndpoint ) {
+                    html += '<div class="field"><span class="label">Registration Endpoint:</span> <span>' + escapeHtml( oauth.summary.registrationEndpoint ) + '</span></div>'
+                }
+
+                if( oauth.summary.grantTypesSupported && oauth.summary.grantTypesSupported.length > 0 ) {
+                    html += '<div class="field"><span class="label">Grant Types:</span> <span>'
+                    oauth.summary.grantTypesSupported.forEach( function( gt ) {
+                        html += '<span class="badge badge-blue">' + escapeHtml( gt ) + '</span> '
+                    } )
+                    html += '</span></div>'
+                }
+
+                if( oauth.summary.pkceMethodsSupported && oauth.summary.pkceMethodsSupported.length > 0 ) {
+                    html += '<div class="field"><span class="label">PKCE Methods:</span> <span>'
+                    oauth.summary.pkceMethodsSupported.forEach( function( m ) {
+                        html += '<span class="badge badge-green">' + escapeHtml( m ) + '</span> '
+                    } )
+                    html += '</span></div>'
+                }
+
+                if( oauth.summary.scopesSupported && oauth.summary.scopesSupported.length > 0 ) {
+                    html += '<div class="field"><span class="label">Scopes:</span> <span>'
+                    oauth.summary.scopesSupported.forEach( function( s ) {
+                        html += '<span class="badge badge-purple">' + escapeHtml( s ) + '</span> '
+                    } )
+                    html += '</span></div>'
+                }
+
+                html += '</div>'
+
+                // Categories
+                html += '<h3 style="margin-top:16px">Categories</h3>'
+                html += '<div class="categories-grid">'
+                Object.keys( oauth.categories ).forEach( function( key ) {
+                    var val = oauth.categories[ key ]
+                    var icon = val
+                        ? '<span class="check-yes">&#10003;</span>'
+                        : '<span class="check-no">&#10005;</span>'
+                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
+                } )
+                html += '</div>'
+
+                html += '</div>'
+            }
+
+            // MCP Apps Detail
+            if( ui.categories && ui.categories.supportsMcpApps ) {
+                html += '<div class="detail-section"><h3>MCP Apps</h3>'
+                html += '<div class="probe-summary">'
+                html += '<div class="field"><span class="label">Extension Version:</span> <span>' + escapeHtml( ui.summary.extensionVersion || '-' ) + '</span></div>'
+                html += '<div class="field"><span class="label">UI Resources:</span> <span>' + ui.summary.uiResourceCount + '</span></div>'
+                html += '<div class="field"><span class="label">Linked Tools:</span> <span>' + ui.summary.uiLinkedToolCount + '</span></div>'
+                html += '<div class="field"><span class="label">App-Only Tools:</span> <span>' + ui.summary.appOnlyToolCount + '</span></div>'
+
+                if( ui.summary.displayModes && ui.summary.displayModes.length > 0 ) {
+                    html += '<div class="field"><span class="label">Display Modes:</span> <span>'
+                    ui.summary.displayModes.forEach( function( mode ) {
+                        html += '<span class="badge badge-purple">' + escapeHtml( mode ) + '</span> '
+                    } )
+                    html += '</span></div>'
+                }
+
+                if( ui.permissionsSummary && ui.permissionsSummary.length > 0 ) {
+                    html += '<div class="field"><span class="label">Permissions:</span> <span>'
+                    ui.permissionsSummary.forEach( function( perm ) {
+                        html += '<span class="badge badge-blue">' + escapeHtml( perm ) + '</span> '
+                    } )
+                    html += '</span></div>'
+                }
+
+                html += '</div>'
+
+                // Categories
+                html += '<h3 style="margin-top:16px">Categories</h3>'
+                html += '<div class="categories-grid">'
+                Object.keys( ui.categories ).forEach( function( key ) {
+                    var val = ui.categories[ key ]
+                    var icon = val
+                        ? '<span class="check-yes">&#10003;</span>'
+                        : '<span class="check-no">&#10005;</span>'
+                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
+                } )
+                html += '</div>'
+
+                // UI Resources list
+                if( ui.uiResources && ui.uiResources.length > 0 ) {
+                    html += '<h3 style="margin-top:16px">UI Resources</h3>'
+                    html += '<div class="tools-grid">'
+                    ui.uiResources.forEach( function( res ) {
+                        html += '<div class="tool-item">'
+                        html += '<div class="tool-name">' + escapeHtml( res.uri || res.name || '-' ) + '</div>'
+                        var parts = []
+                        if( res.mimeType ) { parts.push( res.mimeType ) }
+                        if( res.hasCsp ) { parts.push( 'CSP' ) }
+                        if( res.displayModes && res.displayModes.length > 0 ) { parts.push( res.displayModes.join( ', ' ) ) }
+                        if( parts.length > 0 ) {
+                            html += '<div class="tool-desc">' + escapeHtml( parts.join( ' · ' ) ) + '</div>'
+                        }
+                        html += '</div>'
+                    } )
+                    html += '</div>'
+                }
+
+                // Linked Tools list
+                if( ui.uiLinkedTools && ui.uiLinkedTools.length > 0 ) {
+                    html += '<h3 style="margin-top:16px">UI-Linked Tools</h3>'
+                    html += '<div class="tools-grid">'
+                    ui.uiLinkedTools.forEach( function( tool ) {
+                        html += '<div class="tool-item">'
+                        html += '<div class="tool-name">' + escapeHtml( tool.name || '-' )
+                        if( tool.visibility ) {
+                            html += ' <span class="badge badge-purple">' + escapeHtml( Array.isArray( tool.visibility ) ? tool.visibility.join( ', ' ) : tool.visibility ) + '</span>'
+                        }
+                        html += '</div>'
+                        if( tool.resourceUri ) {
+                            html += '<div class="tool-desc">' + escapeHtml( tool.resourceUri ) + '</div>'
+                        }
+                        html += '</div>'
+                    } )
+                    html += '</div>'
+                }
+
+                html += '</div>'
+            }
+
             // Validation Messages
             if( mcp.messages && mcp.messages.length > 0 ) {
                 html += '<div class="detail-section"><h3>Validation Messages</h3>'
                 html += '<ul class="messages-list">'
                 mcp.messages.forEach( function( msg ) {
+                    html += '<li>' + escapeHtml( msg ) + '</li>'
+                } )
+                html += '</ul></div>'
+            }
+
+            // MCP Apps Messages
+            if( ui.messages && ui.messages.length > 0 ) {
+                html += '<div class="detail-section"><h3>MCP Apps Messages</h3>'
+                html += '<ul class="messages-list">'
+                ui.messages.forEach( function( msg ) {
+                    html += '<li>' + escapeHtml( msg ) + '</li>'
+                } )
+                html += '</ul></div>'
+            }
+
+            // OAuth Messages
+            if( oauth && oauth.messages && oauth.messages.length > 0 ) {
+                html += '<div class="detail-section"><h3>OAuth Messages</h3>'
+                html += '<ul class="messages-list">'
+                oauth.messages.forEach( function( msg ) {
                     html += '<li>' + escapeHtml( msg ) + '</li>'
                 } )
                 html += '</ul></div>'
@@ -442,8 +534,8 @@
                 }
 
                 setValidatorState( 'results' )
-                renderVerdicts( data.mcp, data.a2a )
-                renderDetails( data.mcp, data.a2a )
+                renderVerdicts( data.mcp, data.a2a, data.ui, data.oauth || null )
+                renderDetails( data.mcp, data.a2a, data.ui, data.oauth || null )
             } catch( err ) {
                 setValidatorState( 'idle' )
                 showError( 'Server error: ' + ( err.message || 'Unknown' ) )
@@ -464,210 +556,6 @@
             } )
         } )
 
-        // ══════════════════════════════════════
-        //  TAB 2: ERC-8004 Metadata Builder
-        // ══════════════════════════════════════
-
-        function addServiceRow( protocol, url ) {
-            var container = document.getElementById( 'serviceRows' )
-            var row = document.createElement( 'div' )
-            row.className = 'service-row'
-            row.innerHTML =
-                '<select class="form-select service-protocol">' +
-                    '<option value="mcp"' + ( protocol === 'mcp' ? ' selected' : '' ) + '>mcp</option>' +
-                    '<option value="a2a"' + ( protocol === 'a2a' ? ' selected' : '' ) + '>a2a</option>' +
-                    '<option value="oasf"' + ( protocol === 'oasf' ? ' selected' : '' ) + '>oasf</option>' +
-                    '<option value="ens"' + ( protocol === 'ens' ? ' selected' : '' ) + '>ens</option>' +
-                    '<option value="did"' + ( protocol === 'did' ? ' selected' : '' ) + '>did</option>' +
-                '</select>' +
-                '<input type="text" class="form-input service-url" placeholder="https://your-service.example.com" value="' + escapeHtml( url || '' ) + '">' +
-                '<button class="remove-btn" title="Remove service">&#10005;</button>'
-
-            row.querySelector( '.remove-btn' ).addEventListener( 'click', function() {
-                row.remove()
-                updateJsonPreview()
-            } )
-
-            row.querySelector( '.service-protocol' ).addEventListener( 'change', updateJsonPreview )
-            row.querySelector( '.service-url' ).addEventListener( 'input', updateJsonPreview )
-
-            container.appendChild( row )
-            updateJsonPreview()
-        }
-
-        document.getElementById( 'addServiceBtn' ).addEventListener( 'click', function() {
-            addServiceRow( 'mcp', '' )
-        } )
-
-        // Add one default service row
-        addServiceRow( 'mcp', '' )
-
-        function buildRegistrationFile() {
-            var name = document.getElementById( 'regName' ).value.trim()
-            var description = document.getElementById( 'regDescription' ).value.trim()
-            var image = document.getElementById( 'regImage' ).value.trim()
-            var x402Support = document.getElementById( 'regX402' ).checked
-            var active = document.getElementById( 'regActive' ).checked
-
-            var services = []
-            document.querySelectorAll( '.service-row' ).forEach( function( row ) {
-                var protocol = row.querySelector( '.service-protocol' ).value
-                var url = row.querySelector( '.service-url' ).value.trim()
-
-                if( url ) {
-                    services.push( { protocol: protocol, url: url } )
-                }
-            } )
-
-            var file = {}
-            if( name ) { file.name = name }
-            if( description ) { file.description = description }
-            if( image ) { file.image = image }
-            if( services.length > 0 ) { file.services = services }
-            file.x402Support = x402Support
-            file.active = active
-
-            return file
-        }
-
-        function updateJsonPreview() {
-            var file = buildRegistrationFile()
-            document.getElementById( 'jsonPreview' ).textContent = JSON.stringify( file, null, 4 )
-        }
-
-        // Live update on input changes
-        document.getElementById( 'regName' ).addEventListener( 'input', updateJsonPreview )
-        document.getElementById( 'regDescription' ).addEventListener( 'input', updateJsonPreview )
-        document.getElementById( 'regImage' ).addEventListener( 'input', updateJsonPreview )
-        document.getElementById( 'regX402' ).addEventListener( 'change', updateJsonPreview )
-        document.getElementById( 'regActive' ).addEventListener( 'change', updateJsonPreview )
-
-        // Initial preview
-        updateJsonPreview()
-
-        // Copy JSON
-        document.getElementById( 'copyJsonBtn' ).addEventListener( 'click', function() {
-            var btn = document.getElementById( 'copyJsonBtn' )
-            var text = document.getElementById( 'jsonPreview' ).textContent
-
-            navigator.clipboard.writeText( text ).then( function() {
-                btn.textContent = 'Copied!'
-                btn.classList.add( 'copied' )
-                setTimeout( function() {
-                    btn.textContent = 'Copy JSON'
-                    btn.classList.remove( 'copied' )
-                }, 1500 )
-            } )
-        } )
-
-        // Validate ERC-8004
-        document.getElementById( 'erc8004ValidateBtn' ).addEventListener( 'click', async function() {
-            var btn = document.getElementById( 'erc8004ValidateBtn' )
-            var loadingEl = document.getElementById( 'erc8004Loading' )
-            var resultsEl = document.getElementById( 'erc8004Results' )
-
-            var registrationFile = buildRegistrationFile()
-
-            btn.disabled = true
-            show( loadingEl )
-            resultsEl.innerHTML = ''
-
-            try {
-                var response = await fetch( '/api/erc8004/validate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify( { registrationFile: registrationFile } )
-                } )
-
-                var data = await response.json()
-
-                hide( loadingEl )
-                btn.disabled = false
-
-                renderErc8004Results( data )
-            } catch( err ) {
-                hide( loadingEl )
-                btn.disabled = false
-                resultsEl.innerHTML = '<div class="error-message" style="display:block">Server error: ' + escapeHtml( err.message || 'Unknown' ) + '</div>'
-            }
-        } )
-
-        function renderErc8004Results( data ) {
-            var container = document.getElementById( 'erc8004Results' )
-            var html = '<div class="validation-result">'
-
-            // Status Banner
-            if( data.status ) {
-                html += '<div class="status-banner valid">&#10003; Registration file is valid</div>'
-            } else {
-                html += '<div class="status-banner invalid">&#10005; Registration file has issues</div>'
-            }
-
-            // Validation Messages
-            if( data.messages && data.messages.length > 0 ) {
-                html += '<div class="detail-section"><h3>Validation Messages</h3>'
-                html += '<ul class="messages-list">'
-                data.messages.forEach( function( msg ) {
-                    html += '<li>' + escapeHtml( msg ) + '</li>'
-                } )
-                html += '</ul></div>'
-            }
-
-            // Categories
-            if( data.categories && Object.keys( data.categories ).length > 0 ) {
-                html += '<div class="detail-section"><h3>Categories</h3>'
-                html += '<div class="categories-grid">'
-                Object.keys( data.categories ).forEach( function( key ) {
-                    var val = data.categories[ key ]
-                    var icon = val
-                        ? '<span class="check-yes">&#10003;</span>'
-                        : '<span class="check-no">&#10005;</span>'
-                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
-                } )
-                html += '</div></div>'
-            }
-
-            // Entries
-            if( data.entries && Object.keys( data.entries ).length > 0 ) {
-                html += '<div class="detail-section"><h3>Extracted Metadata</h3>'
-                html += '<div class="probe-summary">'
-                Object.keys( data.entries ).forEach( function( key ) {
-                    var val = data.entries[ key ]
-                    var display = val === null ? '-' : ( typeof val === 'object' ? JSON.stringify( val ) : String( val ) )
-                    html += '<div class="field"><span class="label">' + escapeHtml( key ) + ':</span> <span>' + escapeHtml( display ) + '</span></div>'
-                } )
-                html += '</div></div>'
-            }
-
-            // Base64 URI
-            if( data.encodedUri ) {
-                html += '<div class="detail-section">'
-                html += '<div class="section-header"><h3>Base64 Data URI</h3>'
-                html += '<button class="copy-btn" id="copyUriBtn">Copy URI</button></div>'
-                html += '<div class="uri-output" id="uriOutput">' + escapeHtml( data.encodedUri ) + '</div>'
-                html += '<p style="color:var(--text-muted); font-size:12px; margin-top:8px;">'
-                html += 'Use this URI when calling the <code>register()</code> function on the ERC-8004 contract.</p>'
-                html += '</div>'
-            }
-
-            html += '</div>'
-            container.innerHTML = html
-
-            // Copy URI handler
-            var copyUriBtn = document.getElementById( 'copyUriBtn' )
-            if( copyUriBtn ) {
-                copyUriBtn.addEventListener( 'click', function() {
-                    navigator.clipboard.writeText( data.encodedUri ).then( function() {
-                        copyUriBtn.textContent = 'Copied!'
-                        copyUriBtn.classList.add( 'copied' )
-                        setTimeout( function() {
-                            copyUriBtn.textContent = 'Copy URI'
-                            copyUriBtn.classList.remove( 'copied' )
-                        }, 1500 )
-                    } )
-                } )
-            }
-        }
     </script>
 </body>
 </html>
