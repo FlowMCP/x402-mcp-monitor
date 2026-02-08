@@ -12,7 +12,7 @@
         "test:file": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles"
     },
     "dependencies": {
-        "mcp-agent-assessment": "github:FlowMCP/mcp-agent-assessment#3b7ac09"
+        "mcp-agent-assessment": "github:FlowMCP/mcp-agent-assessment#aea676b"
     },
     "devDependencies": {
         "jest": "^30.0.5"
