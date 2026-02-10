@@ -51,6 +51,8 @@ class AssessmentProbe {
                 hasExperimentalCapabilities: assessCat[ 'hasExperimentalCapabilities' ] || false,
                 specVersion: assessCat[ 'specVersion' ] || null,
                 supportsA2aAp2: assessCat[ 'supportsA2aAp2' ] || false,
+                supportsA2aX402: assessCat[ 'supportsA2aX402' ] || false,
+                supportsA2aEmbeddedFlow: assessCat[ 'supportsA2aEmbeddedFlow' ] || false,
                 hasA2aErc8004ServiceLink: assessCat[ 'hasA2aErc8004ServiceLink' ] || false
             }
 
@@ -72,6 +74,8 @@ class AssessmentProbe {
                 warningCount: assessmentData[ 'warningCount' ] || 0,
                 specVersion: mcpEntries[ 'specVersion' ] || null,
                 ap2Version: a2aEntries[ 'ap2Version' ] || null,
+                ap2Roles: a2aEntries[ 'ap2Roles' ] || null,
+                x402Version: a2aEntries[ 'x402Version' ] || null,
                 erc8004ServiceUrl: a2aEntries[ 'erc8004ServiceUrl' ] || null
             }
 
@@ -117,6 +121,8 @@ class AssessmentProbe {
                     hasExperimentalCapabilities: false,
                     specVersion: null,
                     supportsA2aAp2: false,
+                    supportsA2aX402: false,
+                    supportsA2aEmbeddedFlow: false,
                     hasA2aErc8004ServiceLink: false
                 },
                 summary: {
@@ -137,6 +143,8 @@ class AssessmentProbe {
                     warningCount: 0,
                     specVersion: null,
                     ap2Version: null,
+                    ap2Roles: null,
+                    x402Version: null,
                     erc8004ServiceUrl: null
                 },
                 messages: [ error.message ]

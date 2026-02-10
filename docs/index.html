@@ -479,6 +479,36 @@
                 html += '</span></div>'
             }
 
+            // AP2 Roles
+            if( a2a.ap2Roles && a2a.ap2Roles.length > 0 ) {
+                html += '<div class="field"><span class="label">AP2 Roles:</span> <span>'
+
+                a2a.ap2Roles.forEach( function( role ) {
+                    html += '<span class="badge badge-blue">' + escapeHtml( role ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            // x402 A2A Extension
+            if( a2a.x402Version || cats.supportsA2aX402 ) {
+                html += '<div class="field"><span class="label">x402 (A2A):</span> <span>'
+                html += '<span class="badge badge-green">Detected</span> '
+
+                if( a2a.x402Version ) {
+                    html += '<span class="badge badge-blue">v' + escapeHtml( a2a.x402Version ) + '</span>'
+                }
+
+                html += '</span></div>'
+            }
+
+            // Embedded Flow (AP2 + x402)
+            if( cats.supportsA2aEmbeddedFlow ) {
+                html += '<div class="field"><span class="label">Embedded Flow:</span> <span>'
+                html += '<span class="badge badge-green">AP2 + x402</span>'
+                html += '</span></div>'
+            }
+
             // ERC-8004 Service Link
             if( a2a.erc8004ServiceUrl || cats.hasA2aErc8004ServiceLink ) {
                 html += '<div class="field"><span class="label">ERC-8004 Service:</span> <span>'
@@ -520,6 +550,8 @@
                 'supportsExtendedCard': cats.supportsA2aExtendedCard,
                 'hasDocumentation': cats.hasA2aDocumentation,
                 'supportsAp2': cats.supportsA2aAp2,
+                'supportsX402': cats.supportsA2aX402,
+                'supportsEmbeddedFlow': cats.supportsA2aEmbeddedFlow,
                 'hasErc8004ServiceLink': cats.hasA2aErc8004ServiceLink
             } )
 
