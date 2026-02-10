@@ -281,10 +281,6 @@
                 html += '<div class="field"><span class="label">Protocol Version:</span> <span>' + escapeHtml( mcp.protocolVersion ) + '</span></div>'
             }
 
-            if( mcp.specVersion || cats.specVersion ) {
-                html += '<div class="field"><span class="label">Spec Version:</span> <span>' + escapeHtml( mcp.specVersion || cats.specVersion || '-' ) + '</span></div>'
-            }
-
             html += '<div class="field"><span class="label">Tools:</span> <span>' + ( mcp.toolCount || 0 ) + '</span></div>'
             html += '<div class="field"><span class="label">Resources:</span> <span>' + ( mcp.resourceCount || 0 ) + '</span></div>'
             html += '<div class="field"><span class="label">Prompts:</span> <span>' + ( mcp.promptCount || 0 ) + '</span></div>'
@@ -341,7 +337,9 @@
                 'supportsTaskList': cats.supportsTaskList,
                 'supportsTaskCancel': cats.supportsTaskCancel,
                 'supportsTaskAugmentedToolCall': cats.supportsTaskAugmentedToolCall,
-                'hasExperimentalCapabilities': cats.hasExperimentalCapabilities
+                'hasExperimentalCapabilities': cats.hasExperimentalCapabilities,
+                'supportsSampling': cats.supportsSampling,
+                'supportsElicitation': cats.supportsElicitation
             } )
 
             if( mcp.experimentalCapabilities && mcp.experimentalCapabilities.length > 0 ) {
@@ -535,6 +533,10 @@
         function renderX402Detail( x402, cats ) {
             var html = '<div class="detail-section"><h3>x402 Payment Support</h3>'
             html += '<div class="probe-summary">'
+
+            if( x402.version !== null && x402.version !== undefined ) {
+                html += '<div class="field"><span class="label">x402 Version:</span> <span>v' + x402.version + '</span></div>'
+            }
 
             var networks = x402.networks || []
 
