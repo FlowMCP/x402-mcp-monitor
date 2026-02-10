@@ -379,7 +379,7 @@ describe( 'Server', () => {
 
 
     describe( 'POST /api/validate', () => {
-        test( 'returns legacy format validation result for valid URL', async () => {
+        test( 'returns raw assessment for valid URL', async () => {
             McpAgentAssessment.assess.mockResolvedValue( MOCK_ASSESSMENT )
 
             const request = createMockRequest( {
@@ -394,16 +394,16 @@ describe( 'Server', () => {
             expect( response.statusCode ).toBe( 200 )
 
             const data = JSON.parse( response.body )
-            expect( data.mcp ).toBeDefined()
-            expect( data.a2a ).toBeDefined()
-            expect( data.ui ).toBeDefined()
-            expect( data.mcp.status ).toBe( true )
-            expect( data.mcp.summary.serverName ).toBe( 'Test Server' )
-            expect( data.mcp.tools ).toHaveLength( 1 )
-            expect( data.mcp.categories.supportsX402 ).toBe( true )
-            expect( data.a2a.status ).toBe( false )
-            expect( data.ui.status ).toBe( false )
-            expect( data.ui.categories.supportsMcpApps ).toBe( false )
+            expect( data.status ).toBe( true )
+            expect( data.categories.supportsMcp ).toBe( true )
+            expect( data.categories.supportsX402 ).toBe( true )
+            expect( data.entries.mcp.serverName ).toBe( 'Test Server' )
+            expect( data.entries.mcp.tools ).toHaveLength( 1 )
+            expect( data.entries.a2a ).toBeNull()
+            expect( data.entries.ui ).toBeNull()
+            expect( data.entries.assessment.grade ).toBe( 'A' )
+            expect( data.messages ).toHaveLength( 1 )
+            expect( data.layers ).toBeDefined()
         } )
 
 
@@ -475,7 +475,7 @@ describe( 'Server', () => {
         } )
 
 
-        test( 'passes through all A2A messages without filtering', async () => {
+        test( 'includes A2A layer messages in raw assessment', async () => {
             const assessmentWithA2aErrors = {
                 ...MOCK_ASSESSMENT,
                 layers: {
@@ -501,13 +501,13 @@ describe( 'Server', () => {
             await requestHandler( request, response )
 
             const data = JSON.parse( response.body )
-            expect( data.a2a.messages ).toHaveLength( 2 )
-            expect( data.a2a.messages[ 0 ] ).toBe( 'CSV-023: Missing required field "supported_interfaces"' )
-            expect( data.a2a.messages[ 1 ] ).toBe( 'Not an A2A endpoint' )
+            expect( data.layers.a2a.messages ).toHaveLength( 2 )
+            expect( data.layers.a2a.messages[ 0 ] ).toBe( 'CSV-023: Missing required field "supported_interfaces"' )
+            expect( data.layers.a2a.messages[ 1 ] ).toBe( 'Not an A2A endpoint' )
         } )
 
 
-        test( 'returns UI data in legacy format when MCP Apps are active', async () => {
+        test( 'returns UI data in raw assessment when MCP Apps are active', async () => {
             const assessmentWithUi = {
                 ...MOCK_ASSESSMENT,
                 categories: {
@@ -563,22 +563,21 @@ describe( 'Server', () => {
             expect( response.statusCode ).toBe( 200 )
 
             const data = JSON.parse( response.body )
-            expect( data.ui ).toBeDefined()
-            expect( data.ui.status ).toBe( true )
-            expect( data.ui.categories.supportsMcpApps ).toBe( true )
-            expect( data.ui.categories.hasUiResources ).toBe( true )
-            expect( data.ui.categories.hasToolLinkage ).toBe( true )
-            expect( data.ui.categories.supportsTheming ).toBe( true )
-            expect( data.ui.summary.extensionVersion ).toBe( '1.0.0' )
-            expect( data.ui.summary.uiResourceCount ).toBe( 2 )
-            expect( data.ui.summary.uiLinkedToolCount ).toBe( 1 )
-            expect( data.ui.summary.displayModes ).toEqual( [ 'embedded', 'fullscreen' ] )
-            expect( data.ui.uiResources ).toHaveLength( 2 )
-            expect( data.ui.uiLinkedTools ).toHaveLength( 1 )
-            expect( data.ui.cspSummary ).toEqual( { defaultSrc: "'self'" } )
-            expect( data.ui.permissionsSummary ).toEqual( [ 'clipboard-read', 'geolocation' ] )
-            expect( data.ui.messages ).toHaveLength( 1 )
-            expect( data.ui.messages[ 0 ] ).toBe( 'UI-001 ui: Found 2 UI resources' )
+            expect( data.categories.uiSupportsMcpApps ).toBe( true )
+            expect( data.categories.uiHasUiResources ).toBe( true )
+            expect( data.categories.uiHasToolLinkage ).toBe( true )
+            expect( data.categories.uiSupportsTheming ).toBe( true )
+            expect( data.entries.ui ).toBeDefined()
+            expect( data.entries.ui.extensionVersion ).toBe( '1.0.0' )
+            expect( data.entries.ui.uiResourceCount ).toBe( 2 )
+            expect( data.entries.ui.uiLinkedToolCount ).toBe( 1 )
+            expect( data.entries.ui.displayModes ).toEqual( [ 'embedded', 'fullscreen' ] )
+            expect( data.entries.ui.uiResources ).toHaveLength( 2 )
+            expect( data.entries.ui.uiLinkedTools ).toHaveLength( 1 )
+            expect( data.entries.ui.cspSummary ).toEqual( { defaultSrc: "'self'" } )
+            expect( data.entries.ui.permissionsSummary ).toEqual( [ 'clipboard-read', 'geolocation' ] )
+            expect( data.layers.ui.messages ).toHaveLength( 1 )
+            expect( data.layers.ui.messages[ 0 ] ).toBe( 'UI-001 ui: Found 2 UI resources' )
         } )
     } )
 

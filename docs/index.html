@@ -83,7 +83,27 @@
         function show( el ) { el.style.display = 'block' }
         function hide( el ) { el.style.display = 'none' }
 
-        // ── Endpoint Validator ──
+        function renderCategoryGrid( obj ) {
+            var html = '<div class="categories-grid">'
+
+            Object.keys( obj ).forEach( function( key ) {
+                var val = obj[ key ]
+
+                if( val === null || val === undefined ) { return }
+
+                var icon = val
+                    ? '<span class="check-yes">&#10003;</span>'
+                    : '<span class="check-no">&#10005;</span>'
+
+                html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
+            } )
+
+            html += '</div>'
+
+            return html
+        }
+
+        // ── State Management ──
 
         function setValidatorState( state ) {
             var loading = document.getElementById( 'loadingSection' )
@@ -117,72 +137,90 @@
             document.getElementById( 'loadingText' ).textContent = text
         }
 
-        function isMcpDetected( mcp ) {
-            if( !mcp.categories ) { return false }
+        // ── x402 Detail Helper ──
 
-            return mcp.categories.supportsMcp || mcp.categories.hasTools || mcp.summary.serverName !== null
-        }
+        function buildX402Detail( x402 ) {
+            if( !x402 ) { return 'Supported' }
 
-        function buildX402Detail( mcp ) {
-            if( mcp.summary.x402ToolCount > 0 ) {
-                return mcp.summary.x402ToolCount + ' payment tool' + ( mcp.summary.x402ToolCount !== 1 ? 's' : '' )
+            var restrictedCalls = x402.restrictedCalls || []
+
+            if( restrictedCalls.length > 0 ) {
+                return restrictedCalls.length + ' payment tool' + ( restrictedCalls.length !== 1 ? 's' : '' )
             }
 
             var parts = []
-            if( mcp.summary.networks && mcp.summary.networks.length > 0 ) {
-                parts.push( mcp.summary.networks.length + ' network' + ( mcp.summary.networks.length !== 1 ? 's' : '' ) )
+            var networks = x402.networks || []
+
+            if( networks.length > 0 ) {
+                parts.push( networks.length + ' network' + ( networks.length !== 1 ? 's' : '' ) )
             }
-            if( mcp.summary.schemes && mcp.summary.schemes.length > 0 ) {
-                parts.push( mcp.summary.schemes.join( ', ' ) )
+
+            var schemes = x402.schemes || []
+
+            if( schemes.length > 0 ) {
+                parts.push( schemes.join( ', ' ) )
             }
 
             return parts.length > 0 ? parts.join( ' · ' ) : 'Supported'
         }
 
-        function renderVerdicts( mcp, a2a, ui, oauth ) {
-            var grid = document.getElementById( 'verdictGrid' )
+        // ── Verdict Cards ──
 
-            var mcpDetected = isMcpDetected( mcp )
-            var x402Detected = mcp.categories && mcp.categories.supportsX402
-            var oauthDetected = oauth && oauth.status
+        function renderVerdicts( data ) {
+            var grid = document.getElementById( 'verdictGrid' )
+            var cats = data.categories
+            var mcp = data.entries.mcp
+            var a2a = data.entries.a2a
+            var ui = data.entries.ui
+            var x402 = mcp ? mcp.x402 : null
+            var oauth = mcp ? mcp.oauth : null
+            var assessment = data.entries.assessment
 
             var cards = [
                 {
                     label: 'MCP',
-                    pass: mcpDetected,
-                    detail: mcpDetected
-                        ? ( mcp.summary.serverName || 'MCP Server' ) + ' (' + mcp.summary.toolCount + ' tools)'
+                    pass: cats.supportsMcp,
+                    detail: cats.supportsMcp
+                        ? ( mcp.serverName || 'MCP Server' ) + ' (' + ( mcp.toolCount || 0 ) + ' tools)'
                         : 'Not detected'
                 },
                 {
                     label: 'A2A',
-                    pass: a2a.categories && a2a.categories.hasAgentCard,
-                    detail: a2a.categories && a2a.categories.hasAgentCard
-                        ? ( a2a.summary.agentName || 'A2A Agent' )
+                    pass: cats.hasA2aCard,
+                    detail: cats.hasA2aCard
+                        ? ( a2a ? ( a2a.agentName || 'A2A Agent' ) : 'A2A Agent' )
                         : 'Not detected'
                 },
                 {
                     label: 'x402',
-                    pass: x402Detected,
-                    detail: x402Detected
-                        ? buildX402Detail( mcp )
+                    pass: cats.supportsX402,
+                    detail: cats.supportsX402
+                        ? buildX402Detail( x402 )
                         : 'Not detected'
                 },
                 {
                     label: 'OAuth',
-                    pass: oauthDetected,
-                    detail: oauthDetected
-                        ? ( oauth.summary.issuer || 'OAuth detected' )
+                    pass: cats.supportsOAuth,
+                    detail: cats.supportsOAuth
+                        ? ( oauth ? ( oauth.issuer || 'OAuth detected' ) : 'OAuth detected' )
                         : 'Not required'
                 },
                 {
                     label: 'MCP Apps',
-                    pass: ui.categories && ui.categories.supportsMcpApps,
-                    detail: ui.categories && ui.categories.supportsMcpApps
-                        ? ui.summary.uiResourceCount + ' UI resource' + ( ui.summary.uiResourceCount !== 1 ? 's' : '' )
+                    pass: cats.uiSupportsMcpApps,
+                    detail: cats.uiSupportsMcpApps
+                        ? ( ui ? ( ui.uiResourceCount + ' UI resource' + ( ui.uiResourceCount !== 1 ? 's' : '' ) ) : 'Detected' )
                         : 'Not detected'
                 }
             ]
+
+            if( assessment ) {
+                cards.push( {
+                    label: 'Grade',
+                    pass: assessment.grade === 'A',
+                    detail: assessment.grade + ' (' + assessment.errorCount + 'E / ' + assessment.warningCount + 'W / ' + assessment.infoCount + 'I)'
+                } )
+            }
 
             grid.innerHTML = cards.map( function( card ) {
                 var cls = card.pass ? 'pass' : 'fail'
@@ -198,423 +236,638 @@
             } ).join( '' )
         }
 
-        function renderDetails( mcp, a2a, ui, oauth ) {
+        // ── Detail Sections ──
+
+        function renderDetails( data ) {
             var container = document.getElementById( 'detailSections' )
+            var cats = data.categories
+            var mcp = data.entries.mcp
+            var a2a = data.entries.a2a
+            var ui = data.entries.ui
             var html = ''
 
-            // MCP Detail
-            if( isMcpDetected( mcp ) ) {
-                html += '<div class="detail-section"><h3>MCP Server</h3>'
-                html += '<div class="probe-summary">'
-                html += '<div class="field"><span class="label">Server Name:</span> <span>' + escapeHtml( mcp.summary.serverName || '-' ) + '</span></div>'
-                html += '<div class="field"><span class="label">Server Version:</span> <span>' + escapeHtml( mcp.summary.serverVersion || '-' ) + '</span></div>'
-                html += '<div class="field"><span class="label">Tools Count:</span> <span>' + mcp.summary.toolCount + '</span></div>'
-
-                if( mcp.summary.latencyPingMs !== null ) {
-                    var pingPct = Math.min( mcp.summary.latencyPingMs / 5000 * 100, 100 )
-                    html += '<div class="latency-bar">'
-                    html += '<span class="latency-label">Ping Latency:</span>'
-                    html += '<div class="latency-track"><div class="latency-fill" style="width:' + pingPct + '%"></div></div>'
-                    html += '<span class="latency-value">' + mcp.summary.latencyPingMs + ' ms</span>'
-                    html += '</div>'
-                }
-
-                if( mcp.summary.latencyListToolsMs !== null ) {
-                    var toolsPct = Math.min( mcp.summary.latencyListToolsMs / 5000 * 100, 100 )
-                    html += '<div class="latency-bar">'
-                    html += '<span class="latency-label">Tools Latency:</span>'
-                    html += '<div class="latency-track"><div class="latency-fill" style="width:' + toolsPct + '%"></div></div>'
-                    html += '<span class="latency-value">' + mcp.summary.latencyListToolsMs + ' ms</span>'
-                    html += '</div>'
-                }
-
-                html += '</div>'
-
-                // Categories
-                html += '<h3 style="margin-top:16px">Categories</h3>'
-                html += '<div class="categories-grid">'
-                var catKeys = Object.keys( mcp.categories )
-                catKeys.forEach( function( key ) {
-                    var val = mcp.categories[ key ]
-                    var icon = val
-                        ? '<span class="check-yes">&#10003;</span>'
-                        : '<span class="check-no">&#10005;</span>'
-                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
-                } )
-                html += '</div>'
-
-                // Tools list
-                if( mcp.tools && mcp.tools.length > 0 ) {
-                    html += '<h3 style="margin-top:16px">Tools</h3>'
-                    html += '<div class="tools-grid">'
-
-                    var x402ToolNames = {}
-                    if( mcp.x402Tools ) {
-                        mcp.x402Tools.forEach( function( t ) {
-                            x402ToolNames[ t.name || t ] = true
-                        } )
-                    }
-
-                    var uiToolNames = {}
-                    if( ui && ui.uiLinkedTools ) {
-                        ui.uiLinkedTools.forEach( function( t ) {
-                            uiToolNames[ t.name || t ] = true
-                        } )
-                    }
-
-                    mcp.tools.forEach( function( tool ) {
-                        var toolName = tool.name || '-'
-                        var isX402 = x402ToolNames[ toolName ] || false
-
-                        if( !isX402 ) {
-                            var str = JSON.stringify( tool ).toLowerCase()
-                            isX402 = str.indexOf( 'x402' ) !== -1 ||
-                                str.indexOf( 'paymentrequir' ) !== -1 ||
-                                str.indexOf( 'payment_requir' ) !== -1
-                        }
-
-                        var isUI = uiToolNames[ toolName ] || false
-
-                        var cls = isX402 ? 'tool-item x402-tool' : 'tool-item'
-                        html += '<div class="' + cls + '">'
-                        html += '<div class="tool-name">' + escapeHtml( toolName )
-                        if( isX402 ) { html += ' <span class="badge badge-green">x402</span>' }
-                        if( isUI ) { html += ' <span class="badge badge-purple">UI</span>' }
-                        html += '</div>'
-                        html += '<div class="tool-desc">' + escapeHtml( ( tool.description || '' ).substring( 0, 120 ) ) + '</div>'
-                        html += '</div>'
-                    } )
-
-                    html += '</div>'
-                }
-
-                html += '</div>'
+            if( cats.supportsMcp && mcp ) {
+                html += renderMcpDetail( mcp, cats, ui )
             }
 
-            // A2A Detail
-            if( a2a.categories && a2a.categories.hasAgentCard ) {
-                html += '<div class="detail-section"><h3>A2A Agent</h3>'
-                html += '<div class="probe-summary">'
-                html += '<div class="field"><span class="label">Agent Name:</span> <span>' + escapeHtml( a2a.summary.agentName || '-' ) + '</span></div>'
-                html += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( a2a.summary.agentDescription || '-' ) + '</span></div>'
-                html += '<div class="field"><span class="label">Version:</span> <span>' + escapeHtml( a2a.summary.agentVersion || '-' ) + '</span></div>'
-
-                if( a2a.summary.provider && ( a2a.summary.provider.organization || a2a.summary.provider.url ) ) {
-                    var providerText = a2a.summary.provider.organization || '-'
-                    html += '<div class="field"><span class="label">Provider:</span> <span>'
-                    if( a2a.summary.provider.url ) {
-                        html += '<a href="' + escapeHtml( a2a.summary.provider.url ) + '" target="_blank" rel="noopener">' + escapeHtml( providerText ) + '</a>'
-                    } else {
-                        html += escapeHtml( providerText )
-                    }
-                    html += '</span></div>'
-                }
-
-                html += '<div class="field"><span class="label">Skills:</span> <span>' + a2a.summary.skillCount + '</span></div>'
-
-                if( a2a.summary.skills && a2a.summary.skills.length > 0 ) {
-                    html += '<div class="field"><span class="label">Skill List:</span> <span>'
-                    a2a.summary.skills.forEach( function( skill ) {
-                        html += '<span class="badge badge-blue">' + escapeHtml( skill.name || skill.id || '-' ) + '</span> '
-                    } )
-                    html += '</span></div>'
-                }
-
-                if( a2a.summary.protocolVersion ) {
-                    html += '<div class="field"><span class="label">Protocol Version:</span> <span>' + escapeHtml( a2a.summary.protocolVersion ) + '</span></div>'
-                }
-
-                if( a2a.summary.protocolBindings && a2a.summary.protocolBindings.length > 0 ) {
-                    html += '<div class="field"><span class="label">Protocol Bindings:</span> <span>'
-                    a2a.summary.protocolBindings.forEach( function( binding ) {
-                        html += '<span class="badge badge-blue">' + escapeHtml( typeof binding === 'string' ? binding : JSON.stringify( binding ) ) + '</span> '
-                    } )
-                    html += '</span></div>'
-                }
-
-                if( a2a.summary.latencyMs !== null ) {
-                    var a2aPct = Math.min( a2a.summary.latencyMs / 5000 * 100, 100 )
-                    html += '<div class="latency-bar">'
-                    html += '<span class="latency-label">Latency:</span>'
-                    html += '<div class="latency-track"><div class="latency-fill" style="width:' + a2aPct + '%"></div></div>'
-                    html += '<span class="latency-value">' + a2a.summary.latencyMs + ' ms</span>'
-                    html += '</div>'
-                }
-
-                html += '</div>'
-
-                // A2A Categories
-                html += '<h3 style="margin-top:16px">Categories</h3>'
-                html += '<div class="categories-grid">'
-                Object.keys( a2a.categories ).forEach( function( key ) {
-                    var val = a2a.categories[ key ]
-                    var icon = val
-                        ? '<span class="check-yes">&#10003;</span>'
-                        : '<span class="check-no">&#10005;</span>'
-                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
-                } )
-                html += '</div>'
-
-                html += '</div>'
+            if( cats.hasA2aCard && a2a ) {
+                html += renderA2aDetail( a2a, cats )
             }
 
-            // x402 Detail
-            if( mcp.categories && mcp.categories.supportsX402 ) {
-                html += '<div class="detail-section"><h3>x402 Payment Support</h3>'
-                html += '<div class="probe-summary">'
-
-                if( mcp.summary.networks && mcp.summary.networks.length > 0 ) {
-                    html += '<div class="field"><span class="label">Networks:</span> <span>'
-                    mcp.summary.networks.forEach( function( n ) {
-                        html += '<span class="badge badge-green">' + escapeHtml( CHAIN_NAMES[ n ] || n ) + '</span> '
-                    } )
-                    html += '</span></div>'
-                }
-
-                if( mcp.summary.schemes && mcp.summary.schemes.length > 0 ) {
-                    html += '<div class="field"><span class="label">Schemes:</span> <span>'
-                    mcp.summary.schemes.forEach( function( s ) {
-                        html += '<span class="badge badge-blue">' + escapeHtml( s ) + '</span> '
-                    } )
-                    html += '</span></div>'
-                }
-
-                // Payment Options — grouped by unique payment option (preferred) or flat fallback
-                var perToolKeys = mcp.x402PerTool ? Object.keys( mcp.x402PerTool ) : []
-
-                if( perToolKeys.length > 0 ) {
-                    html += '</div>'
-                    html += '<h3 style="margin-top:16px">Payment Options</h3>'
-
-                    // Group by unique payment option (network + scheme + payTo)
-                    var optionGroups = {}
-                    perToolKeys.forEach( function( toolName ) {
-                        var toolData = mcp.x402PerTool[ toolName ]
-                        var networks = toolData.networks || []
-                        var byNetwork = toolData.byNetwork || {}
-
-                        networks.forEach( function( network ) {
-                            var opt = byNetwork[ network ] || {}
-                            var key = network + '|' + ( opt.scheme || '' ) + '|' + ( opt.payTo || '' )
-                            if( !optionGroups[ key ] ) {
-                                optionGroups[ key ] = { network: network, opt: opt, tools: [] }
-                            }
-                            optionGroups[ key ].tools.push( toolName )
-                        } )
-                    } )
-
-                    // Render each unique payment option with its tools
-                    Object.keys( optionGroups ).forEach( function( key ) {
-                        var group = optionGroups[ key ]
-                        var details = []
-                        if( group.opt.scheme ) { details.push( 'Scheme: ' + group.opt.scheme ) }
-                        if( group.opt.amount ) { details.push( 'Amount: ' + group.opt.amount ) }
-                        if( group.opt.payTo ) { details.push( 'Pay to: ' + group.opt.payTo.substring( 0, 10 ) + '...' + group.opt.payTo.slice( -6 ) ) }
-                        if( group.opt.maxTimeoutSeconds ) { details.push( 'Timeout: ' + group.opt.maxTimeoutSeconds + 's' ) }
-
-                        html += '<div class="payment-option-group">'
-                        html += '<div class="payment-option-header">'
-                        html += '<span class="badge badge-green">' + escapeHtml( chainLabel( group.network ) ) + '</span>'
-                        html += '</div>'
-                        html += '<div class="payment-option-details">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
-                        html += '<div class="payment-option-tools">'
-                        html += '<span class="label">Tools (' + group.tools.length + '):</span> '
-                        html += group.tools.map( function( t ) {
-                            return '<span class="tool-tag">' + escapeHtml( t ) + '</span>'
-                        } ).join( ' ' )
-                        html += '</div>'
-                        html += '</div>'
-                    } )
-                } else if( mcp.x402PaymentRequirements && mcp.x402PaymentRequirements.length > 0 ) {
-                    html += '</div>'
-                    html += '<h3 style="margin-top:16px">Payment Requirements</h3>'
-                    html += '<div class="tools-grid">'
-                    mcp.x402PaymentRequirements.forEach( function( pr ) {
-                        html += '<div class="tool-item x402-tool">'
-                        if( pr.network ) { html += '<div class="tool-name">' + escapeHtml( chainLabel( pr.network ) ) + '</div>' }
-                        var details = []
-                        if( pr.scheme ) { details.push( 'Scheme: ' + pr.scheme ) }
-                        if( pr.maxAmountRequired ) { details.push( 'Max: ' + pr.maxAmountRequired ) }
-                        if( pr.resource ) { details.push( 'Resource: ' + pr.resource ) }
-                        if( pr.payTo ) { details.push( 'Pay to: ' + pr.payTo.substring( 0, 10 ) + '...' + pr.payTo.slice( -6 ) ) }
-                        if( details.length > 0 ) {
-                            html += '<div class="tool-desc">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
-                        }
-                        html += '</div>'
-                    } )
-                    html += '</div>'
-                } else {
-                    html += '</div>'
-                }
-
-                html += '</div>'
+            if( cats.supportsX402 && mcp && mcp.x402 ) {
+                html += renderX402Detail( mcp.x402, cats )
             }
 
-            // OAuth Detail
-            if( oauth && oauth.status ) {
-                html += '<div class="detail-section"><h3>OAuth / Authorization</h3>'
-                html += '<div class="probe-summary">'
-                html += '<div class="field"><span class="label">Issuer:</span> <span>' + escapeHtml( oauth.summary.issuer || '-' ) + '</span></div>'
-                html += '<div class="field"><span class="label">Authorization Endpoint:</span> <span>' + escapeHtml( oauth.summary.authorizationEndpoint || '-' ) + '</span></div>'
-                html += '<div class="field"><span class="label">Token Endpoint:</span> <span>' + escapeHtml( oauth.summary.tokenEndpoint || '-' ) + '</span></div>'
-
-                if( oauth.summary.registrationEndpoint ) {
-                    html += '<div class="field"><span class="label">Registration Endpoint:</span> <span>' + escapeHtml( oauth.summary.registrationEndpoint ) + '</span></div>'
-                }
-
-                if( oauth.summary.grantTypesSupported && oauth.summary.grantTypesSupported.length > 0 ) {
-                    html += '<div class="field"><span class="label">Grant Types:</span> <span>'
-                    oauth.summary.grantTypesSupported.forEach( function( gt ) {
-                        html += '<span class="badge badge-blue">' + escapeHtml( gt ) + '</span> '
-                    } )
-                    html += '</span></div>'
-                }
-
-                if( oauth.summary.pkceMethodsSupported && oauth.summary.pkceMethodsSupported.length > 0 ) {
-                    html += '<div class="field"><span class="label">PKCE Methods:</span> <span>'
-                    oauth.summary.pkceMethodsSupported.forEach( function( m ) {
-                        html += '<span class="badge badge-green">' + escapeHtml( m ) + '</span> '
-                    } )
-                    html += '</span></div>'
-                }
-
-                if( oauth.summary.scopesSupported && oauth.summary.scopesSupported.length > 0 ) {
-                    html += '<div class="field"><span class="label">Scopes:</span> <span>'
-                    oauth.summary.scopesSupported.forEach( function( s ) {
-                        html += '<span class="badge badge-purple">' + escapeHtml( s ) + '</span> '
-                    } )
-                    html += '</span></div>'
-                }
-
-                html += '</div>'
-
-                // Categories
-                html += '<h3 style="margin-top:16px">Categories</h3>'
-                html += '<div class="categories-grid">'
-                Object.keys( oauth.categories ).forEach( function( key ) {
-                    var val = oauth.categories[ key ]
-                    var icon = val
-                        ? '<span class="check-yes">&#10003;</span>'
-                        : '<span class="check-no">&#10005;</span>'
-                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
-                } )
-                html += '</div>'
-
-                html += '</div>'
+            if( cats.supportsOAuth && mcp && mcp.oauth ) {
+                html += renderOAuthDetail( mcp.oauth, cats )
             }
 
-            // MCP Apps Detail
-            if( ui.categories && ui.categories.supportsMcpApps ) {
-                html += '<div class="detail-section"><h3>MCP Apps</h3>'
-                html += '<div class="probe-summary">'
-                html += '<div class="field"><span class="label">Extension Version:</span> <span>' + escapeHtml( ui.summary.extensionVersion || '-' ) + '</span></div>'
-                html += '<div class="field"><span class="label">UI Resources:</span> <span>' + ui.summary.uiResourceCount + '</span></div>'
-                html += '<div class="field"><span class="label">Linked Tools:</span> <span>' + ui.summary.uiLinkedToolCount + '</span></div>'
-                html += '<div class="field"><span class="label">App-Only Tools:</span> <span>' + ui.summary.appOnlyToolCount + '</span></div>'
-
-                if( ui.summary.displayModes && ui.summary.displayModes.length > 0 ) {
-                    html += '<div class="field"><span class="label">Display Modes:</span> <span>'
-                    ui.summary.displayModes.forEach( function( mode ) {
-                        html += '<span class="badge badge-purple">' + escapeHtml( mode ) + '</span> '
-                    } )
-                    html += '</span></div>'
-                }
-
-                if( ui.permissionsSummary && ui.permissionsSummary.length > 0 ) {
-                    html += '<div class="field"><span class="label">Permissions:</span> <span>'
-                    ui.permissionsSummary.forEach( function( perm ) {
-                        html += '<span class="badge badge-blue">' + escapeHtml( perm ) + '</span> '
-                    } )
-                    html += '</span></div>'
-                }
-
-                html += '</div>'
-
-                // Categories
-                html += '<h3 style="margin-top:16px">Categories</h3>'
-                html += '<div class="categories-grid">'
-                Object.keys( ui.categories ).forEach( function( key ) {
-                    var val = ui.categories[ key ]
-                    var icon = val
-                        ? '<span class="check-yes">&#10003;</span>'
-                        : '<span class="check-no">&#10005;</span>'
-                    html += '<div class="category-item">' + icon + ' <span>' + escapeHtml( key ) + '</span></div>'
-                } )
-                html += '</div>'
-
-                // UI Resources list
-                if( ui.uiResources && ui.uiResources.length > 0 ) {
-                    html += '<h3 style="margin-top:16px">UI Resources</h3>'
-                    html += '<div class="tools-grid">'
-                    ui.uiResources.forEach( function( res ) {
-                        html += '<div class="tool-item">'
-                        html += '<div class="tool-name">' + escapeHtml( res.uri || res.name || '-' ) + '</div>'
-                        var parts = []
-                        if( res.mimeType ) { parts.push( res.mimeType ) }
-                        if( res.hasCsp ) { parts.push( 'CSP' ) }
-                        if( res.displayModes && res.displayModes.length > 0 ) { parts.push( res.displayModes.join( ', ' ) ) }
-                        if( parts.length > 0 ) {
-                            html += '<div class="tool-desc">' + escapeHtml( parts.join( ' · ' ) ) + '</div>'
-                        }
-                        html += '</div>'
-                    } )
-                    html += '</div>'
-                }
-
-                // Linked Tools list
-                if( ui.uiLinkedTools && ui.uiLinkedTools.length > 0 ) {
-                    html += '<h3 style="margin-top:16px">UI-Linked Tools</h3>'
-                    html += '<div class="tools-grid">'
-                    ui.uiLinkedTools.forEach( function( tool ) {
-                        html += '<div class="tool-item">'
-                        html += '<div class="tool-name">' + escapeHtml( tool.name || '-' )
-                        if( tool.visibility ) {
-                            html += ' <span class="badge badge-purple">' + escapeHtml( Array.isArray( tool.visibility ) ? tool.visibility.join( ', ' ) : tool.visibility ) + '</span>'
-                        }
-                        html += '</div>'
-                        if( tool.resourceUri ) {
-                            html += '<div class="tool-desc">' + escapeHtml( tool.resourceUri ) + '</div>'
-                        }
-                        html += '</div>'
-                    } )
-                    html += '</div>'
-                }
-
-                html += '</div>'
+            if( cats.uiSupportsMcpApps && ui ) {
+                html += renderMcpAppsDetail( ui, cats )
             }
 
-            // Validation Messages
-            if( mcp.messages && mcp.messages.length > 0 ) {
-                html += '<div class="detail-section"><h3>Validation Messages</h3>'
-                html += '<ul class="messages-list">'
-                mcp.messages.forEach( function( msg ) {
-                    html += '<li>' + escapeHtml( msg ) + '</li>'
-                } )
-                html += '</ul></div>'
-            }
-
-            // MCP Apps Messages
-            if( ui.messages && ui.messages.length > 0 ) {
-                html += '<div class="detail-section"><h3>MCP Apps Messages</h3>'
-                html += '<ul class="messages-list">'
-                ui.messages.forEach( function( msg ) {
-                    html += '<li>' + escapeHtml( msg ) + '</li>'
-                } )
-                html += '</ul></div>'
-            }
-
-            // OAuth Messages
-            if( oauth && oauth.messages && oauth.messages.length > 0 ) {
-                html += '<div class="detail-section"><h3>OAuth Messages</h3>'
-                html += '<ul class="messages-list">'
-                oauth.messages.forEach( function( msg ) {
-                    html += '<li>' + escapeHtml( msg ) + '</li>'
-                } )
-                html += '</ul></div>'
+            if( data.messages && data.messages.length > 0 ) {
+                html += renderMessages( data.messages )
             }
 
             container.innerHTML = html
         }
+
+        // ── MCP Detail ──
+
+        function renderMcpDetail( mcp, cats, ui ) {
+            var html = '<div class="detail-section"><h3>MCP Server</h3>'
+            html += '<div class="probe-summary">'
+            html += '<div class="field"><span class="label">Server Name:</span> <span>' + escapeHtml( mcp.serverName || '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">Server Version:</span> <span>' + escapeHtml( mcp.serverVersion || '-' ) + '</span></div>'
+
+            if( mcp.serverDescription ) {
+                html += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( mcp.serverDescription ) + '</span></div>'
+            }
+
+            if( mcp.protocolVersion ) {
+                html += '<div class="field"><span class="label">Protocol Version:</span> <span>' + escapeHtml( mcp.protocolVersion ) + '</span></div>'
+            }
+
+            if( mcp.specVersion || cats.specVersion ) {
+                html += '<div class="field"><span class="label">Spec Version:</span> <span>' + escapeHtml( mcp.specVersion || cats.specVersion || '-' ) + '</span></div>'
+            }
+
+            html += '<div class="field"><span class="label">Tools:</span> <span>' + ( mcp.toolCount || 0 ) + '</span></div>'
+            html += '<div class="field"><span class="label">Resources:</span> <span>' + ( mcp.resourceCount || 0 ) + '</span></div>'
+            html += '<div class="field"><span class="label">Prompts:</span> <span>' + ( mcp.promptCount || 0 ) + '</span></div>'
+
+            if( mcp.instructions ) {
+                html += '<div class="field"><span class="label">Instructions:</span> <span>' + escapeHtml( mcp.instructions.substring( 0, 200 ) ) + ( mcp.instructions.length > 200 ? '...' : '' ) + '</span></div>'
+            }
+
+            var latency = mcp.latency || {}
+
+            if( latency.ping !== null && latency.ping !== undefined ) {
+                var pingPct = Math.min( latency.ping / 5000 * 100, 100 )
+
+                html += '<div class="latency-bar">'
+                html += '<span class="latency-label">Ping Latency:</span>'
+                html += '<div class="latency-track"><div class="latency-fill" style="width:' + pingPct + '%"></div></div>'
+                html += '<span class="latency-value">' + latency.ping + ' ms</span>'
+                html += '</div>'
+            }
+
+            if( latency.listTools !== null && latency.listTools !== undefined ) {
+                var toolsPct = Math.min( latency.listTools / 5000 * 100, 100 )
+
+                html += '<div class="latency-bar">'
+                html += '<span class="latency-label">Tools Latency:</span>'
+                html += '<div class="latency-track"><div class="latency-fill" style="width:' + toolsPct + '%"></div></div>'
+                html += '<span class="latency-value">' + latency.listTools + ' ms</span>'
+                html += '</div>'
+            }
+
+            html += '</div>'
+
+            // Core categories
+            html += '<h3 style="margin-top:16px">Core</h3>'
+            html += renderCategoryGrid( {
+                'isReachable': cats.isReachable,
+                'supportsMcp': cats.supportsMcp,
+                'hasTools': cats.hasTools,
+                'hasResources': cats.hasResources,
+                'hasPrompts': cats.hasPrompts
+            } )
+
+            // Extended capabilities
+            html += '<h3 style="margin-top:16px">Capabilities</h3>'
+            html += renderCategoryGrid( {
+                'supportsTasks': cats.supportsTasks,
+                'supportsMcpApps': cats.supportsMcpApps,
+                'supportsLogging': cats.supportsLogging,
+                'supportsCompletions': cats.supportsCompletions,
+                'supportsResourceSubscription': cats.supportsResourceSubscription,
+                'supportsResourceListChanged': cats.supportsResourceListChanged,
+                'supportsPromptListChanged': cats.supportsPromptListChanged,
+                'supportsToolListChanged': cats.supportsToolListChanged,
+                'supportsTaskList': cats.supportsTaskList,
+                'supportsTaskCancel': cats.supportsTaskCancel,
+                'supportsTaskAugmentedToolCall': cats.supportsTaskAugmentedToolCall,
+                'hasExperimentalCapabilities': cats.hasExperimentalCapabilities
+            } )
+
+            if( mcp.experimentalCapabilities && mcp.experimentalCapabilities.length > 0 ) {
+                html += '<div class="field" style="margin-top:8px"><span class="label">Experimental:</span> <span>'
+
+                mcp.experimentalCapabilities.forEach( function( key ) {
+                    html += '<span class="badge badge-purple">' + escapeHtml( key ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            if( mcp.taskCapabilities ) {
+                html += '<div class="field" style="margin-top:8px"><span class="label">Task Features:</span> <span>'
+
+                if( mcp.taskCapabilities.list ) { html += '<span class="badge badge-blue">list</span> ' }
+                if( mcp.taskCapabilities.cancel ) { html += '<span class="badge badge-blue">cancel</span> ' }
+                if( mcp.taskCapabilities.augmentedToolCall ) { html += '<span class="badge badge-blue">augmentedToolCall</span> ' }
+
+                html += '</span></div>'
+            }
+
+            // Tools list
+            if( mcp.tools && mcp.tools.length > 0 ) {
+                html += '<h3 style="margin-top:16px">Tools</h3>'
+                html += '<div class="tools-grid">'
+
+                var x402ToolNames = {}
+
+                if( mcp.x402 && mcp.x402.restrictedCalls ) {
+                    mcp.x402.restrictedCalls.forEach( function( t ) {
+                        x402ToolNames[ t.toolName || t.name || t ] = true
+                    } )
+                }
+
+                var uiToolNames = {}
+
+                if( ui && ui.uiLinkedTools ) {
+                    ui.uiLinkedTools.forEach( function( t ) {
+                        uiToolNames[ t.name || t ] = true
+                    } )
+                }
+
+                mcp.tools.forEach( function( tool ) {
+                    var toolName = tool.name || '-'
+                    var isX402 = x402ToolNames[ toolName ] || false
+
+                    if( !isX402 ) {
+                        var str = JSON.stringify( tool ).toLowerCase()
+
+                        isX402 = str.indexOf( 'x402' ) !== -1 ||
+                            str.indexOf( 'paymentrequir' ) !== -1 ||
+                            str.indexOf( 'payment_requir' ) !== -1
+                    }
+
+                    var isUI = uiToolNames[ toolName ] || false
+
+                    var cls = isX402 ? 'tool-item x402-tool' : 'tool-item'
+
+                    html += '<div class="' + cls + '">'
+                    html += '<div class="tool-name">' + escapeHtml( toolName )
+
+                    if( isX402 ) { html += ' <span class="badge badge-green">x402</span>' }
+                    if( isUI ) { html += ' <span class="badge badge-purple">UI</span>' }
+
+                    html += '</div>'
+                    html += '<div class="tool-desc">' + escapeHtml( ( tool.description || '' ).substring( 0, 120 ) ) + '</div>'
+                    html += '</div>'
+                } )
+
+                html += '</div>'
+            }
+
+            html += '</div>'
+
+            return html
+        }
+
+        // ── A2A Detail ──
+
+        function renderA2aDetail( a2a, cats ) {
+            var html = '<div class="detail-section"><h3>A2A Agent</h3>'
+            html += '<div class="probe-summary">'
+            html += '<div class="field"><span class="label">Agent Name:</span> <span>' + escapeHtml( a2a.agentName || '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( a2a.agentDescription || '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">Version:</span> <span>' + escapeHtml( a2a.agentVersion || '-' ) + '</span></div>'
+
+            if( a2a.provider && ( a2a.provider.organization || a2a.provider.url ) ) {
+                var providerText = a2a.provider.organization || '-'
+
+                html += '<div class="field"><span class="label">Provider:</span> <span>'
+
+                if( a2a.provider.url ) {
+                    html += '<a href="' + escapeHtml( a2a.provider.url ) + '" target="_blank" rel="noopener">' + escapeHtml( providerText ) + '</a>'
+                } else {
+                    html += escapeHtml( providerText )
+                }
+
+                html += '</span></div>'
+            }
+
+            html += '<div class="field"><span class="label">Skills:</span> <span>' + ( a2a.skillCount || 0 ) + '</span></div>'
+
+            if( a2a.skills && a2a.skills.length > 0 ) {
+                html += '<div class="field"><span class="label">Skill List:</span> <span>'
+
+                a2a.skills.forEach( function( skill ) {
+                    html += '<span class="badge badge-blue">' + escapeHtml( skill.name || skill.id || '-' ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            if( a2a.protocolVersion ) {
+                html += '<div class="field"><span class="label">Protocol Version:</span> <span>' + escapeHtml( a2a.protocolVersion ) + '</span></div>'
+            }
+
+            if( a2a.protocolBindings && a2a.protocolBindings.length > 0 ) {
+                html += '<div class="field"><span class="label">Protocol Bindings:</span> <span>'
+
+                a2a.protocolBindings.forEach( function( binding ) {
+                    html += '<span class="badge badge-blue">' + escapeHtml( typeof binding === 'string' ? binding : JSON.stringify( binding ) ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            // AP2
+            if( a2a.ap2Version || cats.supportsA2aAp2 ) {
+                html += '<div class="field"><span class="label">AP2:</span> <span>'
+                html += '<span class="badge badge-green">Detected</span> '
+
+                if( a2a.ap2Version ) {
+                    html += '<span class="badge badge-blue">v' + escapeHtml( a2a.ap2Version ) + '</span>'
+                }
+
+                html += '</span></div>'
+            }
+
+            // ERC-8004 Service Link
+            if( a2a.erc8004ServiceUrl || cats.hasA2aErc8004ServiceLink ) {
+                html += '<div class="field"><span class="label">ERC-8004 Service:</span> <span>'
+
+                if( a2a.erc8004ServiceUrl ) {
+                    html += '<a href="' + escapeHtml( a2a.erc8004ServiceUrl ) + '" target="_blank" rel="noopener">' + escapeHtml( a2a.erc8004ServiceUrl ) + '</a>'
+                } else {
+                    html += '<span class="badge badge-green">Linked</span>'
+                }
+
+                html += '</span></div>'
+            }
+
+            // Extensions
+            if( a2a.extensions && typeof a2a.extensions === 'object' && Object.keys( a2a.extensions ).length > 0 ) {
+                html += '<div class="field"><span class="label">Extensions:</span> <span>'
+
+                Object.keys( a2a.extensions ).forEach( function( key ) {
+                    html += '<span class="badge badge-purple">' + escapeHtml( key ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            html += '</div>'
+
+            // A2A Categories
+            html += '<h3 style="margin-top:16px">Categories</h3>'
+            html += renderCategoryGrid( {
+                'hasAgentCard': cats.hasA2aCard,
+                'hasValidStructure': cats.hasA2aValidStructure,
+                'hasSkills': cats.hasA2aSkills,
+                'supportsStreaming': cats.supportsA2aStreaming,
+                'hasSecuritySchemes': cats.hasA2aSecuritySchemes,
+                'hasProvider': cats.hasA2aProvider,
+                'supportsPushNotifications': cats.supportsA2aPushNotifications,
+                'supportsJsonRpc': cats.supportsA2aJsonRpc,
+                'supportsGrpc': cats.supportsA2aGrpc,
+                'supportsExtendedCard': cats.supportsA2aExtendedCard,
+                'hasDocumentation': cats.hasA2aDocumentation,
+                'supportsAp2': cats.supportsA2aAp2,
+                'hasErc8004ServiceLink': cats.hasA2aErc8004ServiceLink
+            } )
+
+            html += '</div>'
+
+            return html
+        }
+
+        // ── x402 Detail ──
+
+        function renderX402Detail( x402, cats ) {
+            var html = '<div class="detail-section"><h3>x402 Payment Support</h3>'
+            html += '<div class="probe-summary">'
+
+            var networks = x402.networks || []
+
+            if( networks.length > 0 ) {
+                html += '<div class="field"><span class="label">Networks:</span> <span>'
+
+                networks.forEach( function( n ) {
+                    html += '<span class="badge badge-green">' + escapeHtml( CHAIN_NAMES[ n ] || n ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            var schemes = x402.schemes || []
+
+            if( schemes.length > 0 ) {
+                html += '<div class="field"><span class="label">Schemes:</span> <span>'
+
+                schemes.forEach( function( s ) {
+                    html += '<span class="badge badge-blue">' + escapeHtml( s ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            // Payment Options — grouped by unique payment option
+            var perTool = x402.perTool || {}
+            var perToolKeys = Object.keys( perTool )
+
+            if( perToolKeys.length > 0 ) {
+                html += '</div>'
+                html += '<h3 style="margin-top:16px">Payment Options</h3>'
+
+                var optionGroups = {}
+
+                perToolKeys.forEach( function( toolName ) {
+                    var toolData = perTool[ toolName ]
+                    var toolNetworks = toolData.networks || []
+                    var byNetwork = toolData.byNetwork || {}
+
+                    toolNetworks.forEach( function( network ) {
+                        var opt = byNetwork[ network ] || {}
+                        var key = network + '|' + ( opt.scheme || '' ) + '|' + ( opt.payTo || '' )
+
+                        if( !optionGroups[ key ] ) {
+                            optionGroups[ key ] = { network: network, opt: opt, tools: [] }
+                        }
+
+                        optionGroups[ key ].tools.push( toolName )
+                    } )
+                } )
+
+                Object.keys( optionGroups ).forEach( function( key ) {
+                    var group = optionGroups[ key ]
+                    var details = []
+
+                    if( group.opt.scheme ) { details.push( 'Scheme: ' + group.opt.scheme ) }
+                    if( group.opt.amount ) { details.push( 'Amount: ' + group.opt.amount ) }
+                    if( group.opt.payTo ) { details.push( 'Pay to: ' + group.opt.payTo.substring( 0, 10 ) + '...' + group.opt.payTo.slice( -6 ) ) }
+                    if( group.opt.maxTimeoutSeconds ) { details.push( 'Timeout: ' + group.opt.maxTimeoutSeconds + 's' ) }
+
+                    html += '<div class="payment-option-group">'
+                    html += '<div class="payment-option-header">'
+                    html += '<span class="badge badge-green">' + escapeHtml( chainLabel( group.network ) ) + '</span>'
+                    html += '</div>'
+                    html += '<div class="payment-option-details">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
+                    html += '<div class="payment-option-tools">'
+                    html += '<span class="label">Tools (' + group.tools.length + '):</span> '
+
+                    html += group.tools.map( function( t ) {
+                        return '<span class="tool-tag">' + escapeHtml( t ) + '</span>'
+                    } ).join( ' ' )
+
+                    html += '</div>'
+                    html += '</div>'
+                } )
+            } else {
+                var paymentOptions = x402.paymentOptions || []
+
+                if( paymentOptions.length > 0 ) {
+                    html += '</div>'
+                    html += '<h3 style="margin-top:16px">Payment Requirements</h3>'
+                    html += '<div class="tools-grid">'
+
+                    paymentOptions.forEach( function( pr ) {
+                        html += '<div class="tool-item x402-tool">'
+
+                        if( pr.network ) { html += '<div class="tool-name">' + escapeHtml( chainLabel( pr.network ) ) + '</div>' }
+
+                        var details = []
+
+                        if( pr.scheme ) { details.push( 'Scheme: ' + pr.scheme ) }
+                        if( pr.maxAmountRequired ) { details.push( 'Max: ' + pr.maxAmountRequired ) }
+                        if( pr.resource ) { details.push( 'Resource: ' + pr.resource ) }
+                        if( pr.payTo ) { details.push( 'Pay to: ' + pr.payTo.substring( 0, 10 ) + '...' + pr.payTo.slice( -6 ) ) }
+
+                        if( details.length > 0 ) {
+                            html += '<div class="tool-desc">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
+                        }
+
+                        html += '</div>'
+                    } )
+
+                    html += '</div>'
+                } else {
+                    html += '</div>'
+                }
+            }
+
+            // x402 Categories
+            html += '<h3 style="margin-top:16px">Categories</h3>'
+            html += renderCategoryGrid( {
+                'supportsX402': cats.supportsX402,
+                'hasValidPaymentRequirements': cats.hasValidPaymentRequirements,
+                'supportsExactScheme': cats.supportsExactScheme,
+                'supportsEvm': cats.supportsEvm,
+                'supportsSolana': cats.supportsSolana
+            } )
+
+            html += '</div>'
+
+            return html
+        }
+
+        // ── OAuth Detail ──
+
+        function renderOAuthDetail( oauth, cats ) {
+            var html = '<div class="detail-section"><h3>OAuth / Authorization</h3>'
+            html += '<div class="probe-summary">'
+            html += '<div class="field"><span class="label">Issuer:</span> <span>' + escapeHtml( oauth.issuer || '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">Authorization Endpoint:</span> <span>' + escapeHtml( oauth.authorizationEndpoint || '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">Token Endpoint:</span> <span>' + escapeHtml( oauth.tokenEndpoint || '-' ) + '</span></div>'
+
+            if( oauth.registrationEndpoint ) {
+                html += '<div class="field"><span class="label">Registration Endpoint:</span> <span>' + escapeHtml( oauth.registrationEndpoint ) + '</span></div>'
+            }
+
+            if( oauth.grantTypesSupported && oauth.grantTypesSupported.length > 0 ) {
+                html += '<div class="field"><span class="label">Grant Types:</span> <span>'
+
+                oauth.grantTypesSupported.forEach( function( gt ) {
+                    html += '<span class="badge badge-blue">' + escapeHtml( gt ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            if( oauth.pkceMethodsSupported && oauth.pkceMethodsSupported.length > 0 ) {
+                html += '<div class="field"><span class="label">PKCE Methods:</span> <span>'
+
+                oauth.pkceMethodsSupported.forEach( function( m ) {
+                    html += '<span class="badge badge-green">' + escapeHtml( m ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            if( oauth.scopesSupported && oauth.scopesSupported.length > 0 ) {
+                html += '<div class="field"><span class="label">Scopes:</span> <span>'
+
+                oauth.scopesSupported.forEach( function( s ) {
+                    html += '<span class="badge badge-purple">' + escapeHtml( s ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            html += '</div>'
+
+            // OAuth Categories
+            html += '<h3 style="margin-top:16px">Categories</h3>'
+            html += renderCategoryGrid( {
+                'supportsOAuth': cats.supportsOAuth,
+                'hasProtectedResourceMetadata': cats.hasProtectedResourceMetadata,
+                'hasAuthServerMetadata': cats.hasAuthServerMetadata,
+                'supportsPkce': cats.supportsPkce,
+                'hasDynamicRegistration': cats.hasDynamicRegistration,
+                'hasValidOAuthConfig': cats.hasValidOAuthConfig
+            } )
+
+            html += '</div>'
+
+            return html
+        }
+
+        // ── MCP Apps Detail ──
+
+        function renderMcpAppsDetail( ui, cats ) {
+            var html = '<div class="detail-section"><h3>MCP Apps</h3>'
+            html += '<div class="probe-summary">'
+            html += '<div class="field"><span class="label">Extension Version:</span> <span>' + escapeHtml( ui.extensionVersion || '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">UI Resources:</span> <span>' + ( ui.uiResourceCount || 0 ) + '</span></div>'
+            html += '<div class="field"><span class="label">Linked Tools:</span> <span>' + ( ui.uiLinkedToolCount || 0 ) + '</span></div>'
+            html += '<div class="field"><span class="label">App-Only Tools:</span> <span>' + ( ui.appOnlyToolCount || 0 ) + '</span></div>'
+
+            if( ui.displayModes && ui.displayModes.length > 0 ) {
+                html += '<div class="field"><span class="label">Display Modes:</span> <span>'
+
+                ui.displayModes.forEach( function( mode ) {
+                    html += '<span class="badge badge-purple">' + escapeHtml( mode ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            if( ui.permissionsSummary && ui.permissionsSummary.length > 0 ) {
+                html += '<div class="field"><span class="label">Permissions:</span> <span>'
+
+                ui.permissionsSummary.forEach( function( perm ) {
+                    html += '<span class="badge badge-blue">' + escapeHtml( perm ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            html += '</div>'
+
+            // UI Categories
+            html += '<h3 style="margin-top:16px">Categories</h3>'
+            html += renderCategoryGrid( {
+                'supportsMcpApps': cats.uiSupportsMcpApps,
+                'hasUiResources': cats.uiHasUiResources,
+                'hasToolLinkage': cats.uiHasToolLinkage,
+                'hasValidHtml': cats.uiHasValidHtml,
+                'hasValidCsp': cats.uiHasValidCsp,
+                'supportsTheming': cats.uiSupportsTheming
+            } )
+
+            // UI Resources list
+            if( ui.uiResources && ui.uiResources.length > 0 ) {
+                html += '<h3 style="margin-top:16px">UI Resources</h3>'
+                html += '<div class="tools-grid">'
+
+                ui.uiResources.forEach( function( res ) {
+                    html += '<div class="tool-item">'
+                    html += '<div class="tool-name">' + escapeHtml( res.uri || res.name || '-' ) + '</div>'
+
+                    var parts = []
+
+                    if( res.mimeType ) { parts.push( res.mimeType ) }
+                    if( res.hasCsp ) { parts.push( 'CSP' ) }
+                    if( res.displayModes && res.displayModes.length > 0 ) { parts.push( res.displayModes.join( ', ' ) ) }
+
+                    if( parts.length > 0 ) {
+                        html += '<div class="tool-desc">' + escapeHtml( parts.join( ' · ' ) ) + '</div>'
+                    }
+
+                    html += '</div>'
+                } )
+
+                html += '</div>'
+            }
+
+            // Linked Tools list
+            if( ui.uiLinkedTools && ui.uiLinkedTools.length > 0 ) {
+                html += '<h3 style="margin-top:16px">UI-Linked Tools</h3>'
+                html += '<div class="tools-grid">'
+
+                ui.uiLinkedTools.forEach( function( tool ) {
+                    html += '<div class="tool-item">'
+                    html += '<div class="tool-name">' + escapeHtml( tool.name || '-' )
+
+                    if( tool.visibility ) {
+                        html += ' <span class="badge badge-purple">' + escapeHtml( Array.isArray( tool.visibility ) ? tool.visibility.join( ', ' ) : tool.visibility ) + '</span>'
+                    }
+
+                    html += '</div>'
+
+                    if( tool.resourceUri ) {
+                        html += '<div class="tool-desc">' + escapeHtml( tool.resourceUri ) + '</div>'
+                    }
+
+                    html += '</div>'
+                } )
+
+                html += '</div>'
+            }
+
+            html += '</div>'
+
+            return html
+        }
+
+        // ── Validation Messages ──
+
+        function renderMessages( messages ) {
+            var html = '<div class="detail-section"><h3>Validation Messages</h3>'
+
+            var errors = messages.filter( function( m ) { return m.severity === 'ERROR' } )
+            var warnings = messages.filter( function( m ) { return m.severity === 'WARNING' } )
+            var infos = messages.filter( function( m ) { return m.severity === 'INFO' } )
+
+            if( errors.length > 0 ) {
+                html += '<h4 style="margin-top:12px;color:#f04">Errors (' + errors.length + ')</h4>'
+                html += '<ul class="messages-list">'
+
+                errors.forEach( function( m ) { html += '<li>' + escapeHtml( m.message ) + '</li>' } )
+
+                html += '</ul>'
+            }
+
+            if( warnings.length > 0 ) {
+                html += '<h4 style="margin-top:12px;color:#fa0">Warnings (' + warnings.length + ')</h4>'
+                html += '<ul class="messages-list">'
+
+                warnings.forEach( function( m ) { html += '<li>' + escapeHtml( m.message ) + '</li>' } )
+
+                html += '</ul>'
+            }
+
+            if( infos.length > 0 ) {
+                html += '<h4 style="margin-top:12px;color:#888">Info (' + infos.length + ')</h4>'
+                html += '<ul class="messages-list">'
+
+                infos.forEach( function( m ) { html += '<li>' + escapeHtml( m.message ) + '</li>' } )
+
+                html += '</ul>'
+            }
+
+            html += '</div>'
+
+            return html
+        }
+
+        // ── Validate Action ──
 
         async function validate() {
             var urlInput = document.getElementById( 'urlInput' )
@@ -639,7 +892,7 @@
             }
 
             setValidatorState( 'loading' )
-            setLoadingText( 'Probing MCP and A2A (server-side)...' )
+            setLoadingText( 'Probing MCP, A2A, x402, OAuth, MCP Apps (server-side)...' )
 
             try {
                 var response = await fetch( '/api/validate', {
@@ -657,8 +910,8 @@
                     return
                 }
 
-                renderVerdicts( data.mcp, data.a2a, data.ui, data.oauth || null )
-                renderDetails( data.mcp, data.a2a, data.ui, data.oauth || null )
+                renderVerdicts( data )
+                renderDetails( data )
                 renderRawAssessment( data, rawUrl )
                 setValidatorState( 'results' )
             } catch( err ) {
@@ -718,6 +971,7 @@
             var jsonStr = JSON.stringify( data, null, 2 )
 
             var hostname = ''
+
             try {
                 hostname = new URL( url ).hostname
             } catch( _e ) {
@@ -755,6 +1009,7 @@
 
             document.getElementById( 'rawCopyBtn' ).addEventListener( 'click', function() {
                 var btn = this
+
                 navigator.clipboard.writeText( jsonStr ).then( function() {
                     btn.textContent = 'Copied!'
                     setTimeout( function() { btn.textContent = 'Copy' }, 2000 )
@@ -764,6 +1019,7 @@
             document.getElementById( 'rawDownloadBtn' ).addEventListener( 'click', function() {
                 var blob = new Blob( [ jsonStr ], { type: 'application/json' } )
                 var a = document.createElement( 'a' )
+
                 a.href = URL.createObjectURL( blob )
                 a.download = filename
                 document.body.appendChild( a )
