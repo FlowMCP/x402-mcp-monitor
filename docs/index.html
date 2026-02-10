@@ -185,7 +185,7 @@
                         : 'Not detected'
                 },
                 {
-                    label: 'A2A',
+                    label: 'A2A / AP2',
                     pass: cats.hasA2aCard,
                     detail: cats.hasA2aCard
                         ? ( a2a ? ( a2a.agentName || 'A2A Agent' ) : 'A2A Agent' )
@@ -213,14 +213,6 @@
                         : 'Not detected'
                 }
             ]
-
-            if( assessment ) {
-                cards.push( {
-                    label: 'Grade',
-                    pass: assessment.grade === 'A',
-                    detail: assessment.grade + ' (' + assessment.errorCount + 'E / ' + assessment.warningCount + 'W / ' + assessment.infoCount + 'I)'
-                } )
-            }
 
             grid.innerHTML = cards.map( function( card ) {
                 var cls = card.pass ? 'pass' : 'fail'
