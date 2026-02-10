@@ -220,6 +220,13 @@
                     detail: cats.uiSupportsMcpApps
                         ? ( ui ? ( ui.uiResourceCount + ' UI resource' + ( ui.uiResourceCount !== 1 ? 's' : '' ) ) : 'Detected' )
                         : 'Not detected'
+                },
+                {
+                    label: 'ERC-8004',
+                    pass: cats.hasErc8004Registration || cats.hasWellKnownRegistration,
+                    detail: cats.hasErc8004Registration
+                        ? 'On-chain' + ( cats.isErc8004OnChainVerified ? ' · Verified' : '' )
+                        : ( cats.hasWellKnownRegistration ? 'Well-known found' : 'Not registered' )
                 }
             ]
 
@@ -246,6 +253,8 @@
             var mcp = data.entries.mcp
             var a2a = data.entries.a2a
             var ui = data.entries.ui
+            var erc8004 = data.entries.erc8004
+            var reputation = data.entries.reputation
             var html = ''
 
             if( http ) {
@@ -270,6 +279,10 @@
 
             if( cats.uiSupportsMcpApps && ui ) {
                 html += renderMcpAppsDetail( ui, cats )
+            }
+
+            if( erc8004 || cats.hasWellKnownRegistration || cats.hasErc8004Registration ) {
+                html += renderErc8004Detail( erc8004, reputation, cats )
             }
 
             if( data.messages && data.messages.length > 0 ) {
@@ -330,6 +343,85 @@
                 'hasServerHeader': cats.hasServerHeader,
                 'supportsCors': cats.supportsCors,
                 'supportsHttp2': cats.supportsHttp2
+            } )
+
+            html += '</div>'
+
+            return html
+        }
+
+        // ── ERC-8004 Detail ──
+
+        function renderErc8004Detail( erc8004, reputation, cats ) {
+            var html = '<div class="detail-section"><h3>ERC-8004 / Reputation</h3>'
+            html += '<div class="probe-summary">'
+
+            if( erc8004 ) {
+                html += '<div class="field"><span class="label">Agent ID:</span> <span>' + escapeHtml( String( erc8004.agentId ) ) + '</span></div>'
+                html += '<div class="field"><span class="label">Registry:</span> <span style="font-family:monospace;font-size:12px">' + escapeHtml( erc8004.agentRegistry || '-' ) + '</span></div>'
+                html += '<div class="field"><span class="label">Chain:</span> <span>' + escapeHtml( erc8004.chainAlias || '-' ) + ( erc8004.chainId ? ' (' + erc8004.chainId + ')' : '' ) + '</span></div>'
+
+                if( erc8004.registrationName ) {
+                    html += '<div class="field"><span class="label">Name:</span> <span>' + escapeHtml( erc8004.registrationName ) + '</span></div>'
+                }
+
+                if( erc8004.registrationDescription ) {
+                    html += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( erc8004.registrationDescription ) + '</span></div>'
+                }
+
+                html += '<div class="field"><span class="label">On-Chain Verified:</span> <span>' + ( erc8004.isOnChainVerified ? 'Yes' : 'No' ) + '</span></div>'
+                html += '<div class="field"><span class="label">Spec Compliant:</span> <span>' + ( erc8004.isSpecCompliant ? 'Yes' : 'No' ) + '</span></div>'
+
+                if( erc8004.x402Support !== null ) {
+                    html += '<div class="field"><span class="label">x402 Support:</span> <span>' + ( erc8004.x402Support ? 'Yes' : 'No' ) + '</span></div>'
+                }
+
+                if( erc8004.isActive !== null ) {
+                    html += '<div class="field"><span class="label">Active:</span> <span>' + ( erc8004.isActive ? 'Yes' : 'No' ) + '</span></div>'
+                }
+
+                if( erc8004.services && erc8004.services.length > 0 ) {
+                    html += '<div class="field"><span class="label">Services:</span> <span>' + erc8004.services.length + '</span></div>'
+
+                    erc8004.services.forEach( function( svc ) {
+                        html += '<div class="field" style="padding-left:16px"><span class="label">' + escapeHtml( svc.type || 'service' ) + '</span> <span>'
+                        html += escapeHtml( svc.endpoint || svc.url || '-' )
+                        html += '</span></div>'
+                    } )
+                }
+            } else {
+                html += '<div class="field"><span class="label">Status:</span> <span>No on-chain registration found</span></div>'
+            }
+
+            if( reputation ) {
+                html += '<h3 style="margin-top:16px">On-Chain Reputation</h3>'
+
+                if( reputation.feedbackCount !== null ) {
+                    html += '<div class="field"><span class="label">Feedback Count:</span> <span>' + reputation.feedbackCount + '</span></div>'
+                }
+
+                if( reputation.averageValue !== null ) {
+                    html += '<div class="field"><span class="label">Average Value:</span> <span>' + reputation.averageValue + '</span></div>'
+                }
+
+                if( reputation.validationCount !== null ) {
+                    html += '<div class="field"><span class="label">Validation Count:</span> <span>' + reputation.validationCount + '</span></div>'
+                }
+
+                if( reputation.averageResponse !== null ) {
+                    html += '<div class="field"><span class="label">Avg Response:</span> <span>' + reputation.averageResponse + '</span></div>'
+                }
+            }
+
+            html += '</div>'
+
+            html += '<h3 style="margin-top:16px">Categories</h3>'
+            html += renderCategoryGrid( {
+                'hasWellKnownRegistration': cats.hasWellKnownRegistration,
+                'hasErc8004Registration': cats.hasErc8004Registration,
+                'isErc8004OnChainVerified': cats.isErc8004OnChainVerified,
+                'isErc8004SpecCompliant': cats.isErc8004SpecCompliant,
+                'hasOnChainReputation': cats.hasOnChainReputation
             } )
 
             html += '</div>'
