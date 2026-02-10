@@ -38,7 +38,20 @@ class AssessmentProbe {
                 hasA2aCard: assessCat[ 'hasA2aCard' ] || false,
                 hasA2aValidStructure: assessCat[ 'hasA2aValidStructure' ] || false,
                 hasA2aSkills: assessCat[ 'hasA2aSkills' ] || false,
-                supportsA2aStreaming: assessCat[ 'supportsA2aStreaming' ] || false
+                supportsA2aStreaming: assessCat[ 'supportsA2aStreaming' ] || false,
+                supportsLogging: assessCat[ 'supportsLogging' ] || false,
+                supportsCompletions: assessCat[ 'supportsCompletions' ] || false,
+                supportsResourceSubscription: assessCat[ 'supportsResourceSubscription' ] || false,
+                supportsResourceListChanged: assessCat[ 'supportsResourceListChanged' ] || false,
+                supportsPromptListChanged: assessCat[ 'supportsPromptListChanged' ] || false,
+                supportsToolListChanged: assessCat[ 'supportsToolListChanged' ] || false,
+                supportsTaskList: assessCat[ 'supportsTaskList' ] || false,
+                supportsTaskCancel: assessCat[ 'supportsTaskCancel' ] || false,
+                supportsTaskAugmentedToolCall: assessCat[ 'supportsTaskAugmentedToolCall' ] || false,
+                hasExperimentalCapabilities: assessCat[ 'hasExperimentalCapabilities' ] || false,
+                specVersion: assessCat[ 'specVersion' ] || null,
+                supportsA2aAp2: assessCat[ 'supportsA2aAp2' ] || false,
+                hasA2aErc8004ServiceLink: assessCat[ 'hasA2aErc8004ServiceLink' ] || false
             }
 
             const summary = {
@@ -56,7 +69,10 @@ class AssessmentProbe {
                 skillCount: a2aEntries[ 'skillCount' ] || null,
                 grade: assessmentData[ 'grade' ] || null,
                 errorCount: assessmentData[ 'errorCount' ] || 0,
-                warningCount: assessmentData[ 'warningCount' ] || 0
+                warningCount: assessmentData[ 'warningCount' ] || 0,
+                specVersion: mcpEntries[ 'specVersion' ] || null,
+                ap2Version: a2aEntries[ 'ap2Version' ] || null,
+                erc8004ServiceUrl: a2aEntries[ 'erc8004ServiceUrl' ] || null
             }
 
             const probeResult = {
@@ -88,7 +104,20 @@ class AssessmentProbe {
                     hasA2aCard: false,
                     hasA2aValidStructure: false,
                     hasA2aSkills: false,
-                    supportsA2aStreaming: false
+                    supportsA2aStreaming: false,
+                    supportsLogging: false,
+                    supportsCompletions: false,
+                    supportsResourceSubscription: false,
+                    supportsResourceListChanged: false,
+                    supportsPromptListChanged: false,
+                    supportsToolListChanged: false,
+                    supportsTaskList: false,
+                    supportsTaskCancel: false,
+                    supportsTaskAugmentedToolCall: false,
+                    hasExperimentalCapabilities: false,
+                    specVersion: null,
+                    supportsA2aAp2: false,
+                    hasA2aErc8004ServiceLink: false
                 },
                 summary: {
                     serverName: null,
@@ -105,7 +134,10 @@ class AssessmentProbe {
                     skillCount: null,
                     grade: null,
                     errorCount: 0,
-                    warningCount: 0
+                    warningCount: 0,
+                    specVersion: null,
+                    ap2Version: null,
+                    erc8004ServiceUrl: null
                 },
                 messages: [ error.message ]
             }

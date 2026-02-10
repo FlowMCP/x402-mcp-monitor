@@ -42,6 +42,19 @@ describe( 'AssessmentProbe', () => {
                     hasA2aValidStructure: false,
                     hasA2aSkills: false,
                     supportsA2aStreaming: false,
+                    supportsLogging: false,
+                    supportsCompletions: false,
+                    supportsResourceSubscription: false,
+                    supportsResourceListChanged: false,
+                    supportsPromptListChanged: false,
+                    supportsToolListChanged: false,
+                    supportsTaskList: false,
+                    supportsTaskCancel: false,
+                    supportsTaskAugmentedToolCall: false,
+                    hasExperimentalCapabilities: false,
+                    specVersion: '2025-03-26',
+                    supportsA2aAp2: false,
+                    hasA2aErc8004ServiceLink: false,
                     overallHealthy: true
                 },
                 entries: {
@@ -61,7 +74,10 @@ describe( 'AssessmentProbe', () => {
                             networks: [ 'eip155:8453' ],
                             schemes: [ 'exact' ]
                         },
-                        latency: 120
+                        latency: 120,
+                        specVersion: '2025-03-26',
+                        experimentalCapabilities: null,
+                        taskCapabilities: null
                     },
                     a2a: null,
                     erc8004: null,
@@ -89,6 +105,8 @@ describe( 'AssessmentProbe', () => {
             expect( probeResult[ 'summary' ][ 'networks' ] ).toEqual( [ 'eip155:8453' ] )
             expect( probeResult[ 'summary' ][ 'schemes' ] ).toEqual( [ 'exact' ] )
             expect( probeResult[ 'summary' ][ 'grade' ] ).toBe( 'A' )
+            expect( probeResult[ 'summary' ][ 'specVersion' ] ).toBe( '2025-03-26' )
+            expect( probeResult[ 'categories' ][ 'specVersion' ] ).toBe( '2025-03-26' )
             expect( probeResult[ 'messages' ] ).toHaveLength( 1 )
         } )
 
@@ -114,6 +132,19 @@ describe( 'AssessmentProbe', () => {
                     hasA2aValidStructure: true,
                     hasA2aSkills: true,
                     supportsA2aStreaming: true,
+                    supportsLogging: false,
+                    supportsCompletions: false,
+                    supportsResourceSubscription: false,
+                    supportsResourceListChanged: false,
+                    supportsPromptListChanged: false,
+                    supportsToolListChanged: false,
+                    supportsTaskList: false,
+                    supportsTaskCancel: false,
+                    supportsTaskAugmentedToolCall: false,
+                    hasExperimentalCapabilities: false,
+                    specVersion: null,
+                    supportsA2aAp2: true,
+                    hasA2aErc8004ServiceLink: false,
                     overallHealthy: true
                 },
                 entries: {
@@ -136,7 +167,10 @@ describe( 'AssessmentProbe', () => {
                         skillCount: 2,
                         skills: [ { id: 's1' }, { id: 's2' } ],
                         protocolBindings: [ 'JSONRPC' ],
-                        provider: { organization: 'Test Org', url: null }
+                        provider: { organization: 'Test Org', url: null },
+                        ap2Version: '1.0',
+                        erc8004ServiceUrl: null,
+                        extensions: 'ap2=https://github.com/google-agentic-commerce/AP2/v1.0'
                     },
                     erc8004: null,
                     reputation: null,
@@ -156,6 +190,8 @@ describe( 'AssessmentProbe', () => {
             expect( probeResult[ 'categories' ][ 'supportsA2aStreaming' ] ).toBe( true )
             expect( probeResult[ 'summary' ][ 'agentName' ] ).toBe( 'Test Agent' )
             expect( probeResult[ 'summary' ][ 'skillCount' ] ).toBe( 2 )
+            expect( probeResult[ 'categories' ][ 'supportsA2aAp2' ] ).toBe( true )
+            expect( probeResult[ 'summary' ][ 'ap2Version' ] ).toBe( '1.0' )
         } )
 
 
@@ -173,6 +209,11 @@ describe( 'AssessmentProbe', () => {
             expect( probeResult[ 'categories' ][ 'hasA2aCard' ] ).toBe( false )
             expect( probeResult[ 'summary' ][ 'serverName' ] ).toBe( null )
             expect( probeResult[ 'summary' ][ 'grade' ] ).toBe( null )
+            expect( probeResult[ 'categories' ][ 'supportsLogging' ] ).toBe( false )
+            expect( probeResult[ 'categories' ][ 'specVersion' ] ).toBe( null )
+            expect( probeResult[ 'categories' ][ 'supportsA2aAp2' ] ).toBe( false )
+            expect( probeResult[ 'summary' ][ 'specVersion' ] ).toBe( null )
+            expect( probeResult[ 'summary' ][ 'ap2Version' ] ).toBe( null )
             expect( probeResult[ 'messages' ] ).toEqual( [ 'Connection refused' ] )
         } )
 
@@ -198,6 +239,19 @@ describe( 'AssessmentProbe', () => {
                     hasA2aValidStructure: false,
                     hasA2aSkills: false,
                     supportsA2aStreaming: false,
+                    supportsLogging: false,
+                    supportsCompletions: false,
+                    supportsResourceSubscription: false,
+                    supportsResourceListChanged: false,
+                    supportsPromptListChanged: false,
+                    supportsToolListChanged: false,
+                    supportsTaskList: false,
+                    supportsTaskCancel: false,
+                    supportsTaskAugmentedToolCall: false,
+                    hasExperimentalCapabilities: false,
+                    specVersion: null,
+                    supportsA2aAp2: false,
+                    hasA2aErc8004ServiceLink: false,
                     overallHealthy: true
                 },
                 entries: {
@@ -233,6 +287,87 @@ describe( 'AssessmentProbe', () => {
             expect( probeResult[ 'summary' ][ 'x402ToolCount' ] ).toBe( 0 )
             expect( probeResult[ 'summary' ][ 'networks' ] ).toEqual( [] )
             expect( probeResult[ 'summary' ][ 'schemes' ] ).toEqual( [] )
+        } )
+
+
+        test( 'returns new MCP capabilities in probe result', async () => {
+            mockAssess.mockResolvedValue( {
+                status: true,
+                messages: [],
+                categories: {
+                    isReachable: true,
+                    supportsMcp: true,
+                    hasTools: true,
+                    hasResources: false,
+                    hasPrompts: false,
+                    supportsX402: false,
+                    hasValidPaymentRequirements: false,
+                    supportsExactScheme: false,
+                    supportsEvm: false,
+                    supportsSolana: false,
+                    supportsTasks: false,
+                    supportsMcpApps: false,
+                    hasA2aCard: false,
+                    hasA2aValidStructure: false,
+                    hasA2aSkills: false,
+                    supportsA2aStreaming: false,
+                    supportsLogging: true,
+                    supportsCompletions: true,
+                    supportsResourceSubscription: false,
+                    supportsResourceListChanged: false,
+                    supportsPromptListChanged: false,
+                    supportsToolListChanged: false,
+                    supportsTaskList: false,
+                    supportsTaskCancel: false,
+                    supportsTaskAugmentedToolCall: false,
+                    hasExperimentalCapabilities: true,
+                    specVersion: '2025-03-26',
+                    supportsA2aAp2: false,
+                    hasA2aErc8004ServiceLink: false,
+                    overallHealthy: true
+                },
+                entries: {
+                    endpoint: 'https://capable.server.com/mcp',
+                    timestamp: '2026-02-07T10:00:00.000Z',
+                    mcp: {
+                        serverName: 'capable-server',
+                        serverVersion: '3.0.0',
+                        toolCount: 5,
+                        resourceCount: 0,
+                        promptCount: 0,
+                        tools: [ { name: 't1' }, { name: 't2' }, { name: 't3' }, { name: 't4' }, { name: 't5' } ],
+                        resources: [],
+                        prompts: [],
+                        x402: null,
+                        latency: 60,
+                        specVersion: '2025-03-26',
+                        experimentalCapabilities: { customFeature: true },
+                        taskCapabilities: null
+                    },
+                    a2a: null,
+                    erc8004: null,
+                    reputation: null,
+                    assessment: { errorCount: 0, warningCount: 0, infoCount: 0, grade: 'A' }
+                },
+                layers: {}
+            } )
+
+            const { probeResult } = await AssessmentProbe.probe( {
+                endpoint: 'https://capable.server.com/mcp',
+                timeout: 5000
+            } )
+
+            expect( probeResult[ 'categories' ][ 'supportsLogging' ] ).toBe( true )
+            expect( probeResult[ 'categories' ][ 'supportsCompletions' ] ).toBe( true )
+            expect( probeResult[ 'categories' ][ 'hasExperimentalCapabilities' ] ).toBe( true )
+            expect( probeResult[ 'categories' ][ 'specVersion' ] ).toBe( '2025-03-26' )
+            expect( probeResult[ 'categories' ][ 'supportsResourceSubscription' ] ).toBe( false )
+            expect( probeResult[ 'categories' ][ 'supportsTaskList' ] ).toBe( false )
+            expect( probeResult[ 'categories' ][ 'supportsA2aAp2' ] ).toBe( false )
+            expect( probeResult[ 'categories' ][ 'hasA2aErc8004ServiceLink' ] ).toBe( false )
+            expect( probeResult[ 'summary' ][ 'specVersion' ] ).toBe( '2025-03-26' )
+            expect( probeResult[ 'summary' ][ 'ap2Version' ] ).toBe( null )
+            expect( probeResult[ 'summary' ][ 'erc8004ServiceUrl' ] ).toBe( null )
         } )
 
 
