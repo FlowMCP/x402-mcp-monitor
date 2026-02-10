@@ -224,9 +224,15 @@
                 {
                     label: 'ERC-8004',
                     pass: cats.hasErc8004Registration || cats.hasWellKnownRegistration,
-                    detail: cats.hasErc8004Registration
-                        ? 'On-chain' + ( cats.isErc8004OnChainVerified ? ' · Verified' : '' )
-                        : ( cats.hasWellKnownRegistration ? 'Well-known found' : 'Not registered' )
+                    detail: ( function() {
+                        if( !cats.hasErc8004Registration && !cats.hasWellKnownRegistration ) { return 'Not registered' }
+                        if( !cats.hasErc8004Registration ) { return 'Well-known found' }
+                        var parts = [ 'On-chain' ]
+                        if( cats.isErc8004OnChainVerified ) { parts.push( 'Verified' ) }
+                        var e = data.entries.erc8004
+                        if( e && e.chainAlias ) { parts.push( CHAIN_NAMES[ e.chainAlias ] || e.chainAlias ) }
+                        return parts.join( ' · ' )
+                    } )()
                 }
             ]
 
@@ -350,6 +356,27 @@
             return html
         }
 
+        // ── ERC-8004 Chain Names ──
+
+        var CHAIN_NAMES = {
+            'ETHEREUM_MAINNET': 'Ethereum',
+            'OPTIMISM_MAINNET': 'Optimism',
+            'BNB_MAINNET': 'BNB Smart Chain',
+            'GNOSIS_MAINNET': 'Gnosis',
+            'POLYGON_MAINNET': 'Polygon',
+            'MONAD_MAINNET': 'Monad',
+            'XLAYER_MAINNET': 'XLayer',
+            'BASE_MAINNET': 'Base',
+            'ARBITRUM_MAINNET': 'Arbitrum',
+            'CELO_MAINNET': 'Celo',
+            'AVALANCHE_MAINNET': 'Avalanche',
+            'LINEA_MAINNET': 'Linea',
+            'TAIKO_MAINNET': 'Taiko',
+            'SCROLL_MAINNET': 'Scroll',
+            'SEPOLIA_TESTNET': 'Sepolia',
+            'BASE_SEPOLIA_TESTNET': 'Base Sepolia'
+        }
+
         // ── ERC-8004 Detail ──
 
         function renderErc8004Detail( erc8004, reputation, cats ) {
@@ -359,7 +386,8 @@
             if( erc8004 ) {
                 html += '<div class="field"><span class="label">Agent ID:</span> <span>' + escapeHtml( String( erc8004.agentId ) ) + '</span></div>'
                 html += '<div class="field"><span class="label">Registry:</span> <span style="font-family:monospace;font-size:12px">' + escapeHtml( erc8004.agentRegistry || '-' ) + '</span></div>'
-                html += '<div class="field"><span class="label">Chain:</span> <span>' + escapeHtml( erc8004.chainAlias || '-' ) + ( erc8004.chainId ? ' (' + erc8004.chainId + ')' : '' ) + '</span></div>'
+                var chainDisplayName = CHAIN_NAMES[ erc8004.chainAlias ] || erc8004.chainAlias || '-'
+                html += '<div class="field"><span class="label">Chain:</span> <span>' + escapeHtml( chainDisplayName ) + ( erc8004.chainId ? ' (' + erc8004.chainId + ')' : '' ) + '</span></div>'
 
                 if( erc8004.registrationName ) {
                     html += '<div class="field"><span class="label">Name:</span> <span>' + escapeHtml( erc8004.registrationName ) + '</span></div>'
