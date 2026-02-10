@@ -13,6 +13,7 @@ class AssessmentProbe {
 
             const { categories: assessCat, entries: assessEntries, messages: assessMessages } = assessment
 
+            const httpEntries = assessEntries[ 'http' ] || {}
             const mcpEntries = assessEntries[ 'mcp' ] || {}
             const a2aEntries = assessEntries[ 'a2a' ] || {}
             const assessmentData = assessEntries[ 'assessment' ] || {}
@@ -23,6 +24,16 @@ class AssessmentProbe {
             const schemes = x402Data !== null && Array.isArray( x402Data[ 'schemes' ] ) ? x402Data[ 'schemes' ] : []
 
             const categories = {
+                isHttpReachable: assessCat[ 'isHttpReachable' ] || false,
+                isHttps: assessCat[ 'isHttps' ] || false,
+                hasValidSsl: assessCat[ 'hasValidSsl' ] || false,
+                hasSslCertificate: assessCat[ 'hasSslCertificate' ] || false,
+                hasRedirects: assessCat[ 'hasRedirects' ] || false,
+                isWebsite: assessCat[ 'isWebsite' ] || false,
+                isApiEndpoint: assessCat[ 'isApiEndpoint' ] || false,
+                hasServerHeader: assessCat[ 'hasServerHeader' ] || false,
+                supportsCors: assessCat[ 'supportsCors' ] || false,
+                supportsHttp2: assessCat[ 'supportsHttp2' ] || false,
                 isReachable: assessCat[ 'isReachable' ] || false,
                 supportsMcp: assessCat[ 'supportsMcp' ] || false,
                 hasTools: assessCat[ 'hasTools' ] || false,
@@ -57,6 +68,9 @@ class AssessmentProbe {
             }
 
             const summary = {
+                httpStatusCode: httpEntries[ 'statusCode' ] || null,
+                httpResponseTimeMs: httpEntries[ 'responseTimeMs' ] || null,
+                httpProtocol: httpEntries[ 'protocol' ] || null,
                 serverName: mcpEntries[ 'serverName' ] || null,
                 serverVersion: mcpEntries[ 'serverVersion' ] || null,
                 toolCount: mcpEntries[ 'toolCount' ] || 0,
@@ -93,6 +107,16 @@ class AssessmentProbe {
                 timestamp: new Date().toISOString(),
                 status: false,
                 categories: {
+                    isHttpReachable: false,
+                    isHttps: false,
+                    hasValidSsl: false,
+                    hasSslCertificate: false,
+                    hasRedirects: false,
+                    isWebsite: false,
+                    isApiEndpoint: false,
+                    hasServerHeader: false,
+                    supportsCors: false,
+                    supportsHttp2: false,
                     isReachable: false,
                     supportsMcp: false,
                     hasTools: false,
@@ -126,6 +150,9 @@ class AssessmentProbe {
                     hasA2aErc8004ServiceLink: false
                 },
                 summary: {
+                    httpStatusCode: null,
+                    httpResponseTimeMs: null,
+                    httpProtocol: null,
                     serverName: null,
                     serverVersion: null,
                     toolCount: 0,

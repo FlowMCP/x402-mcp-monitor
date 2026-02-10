@@ -169,14 +169,23 @@
         function renderVerdicts( data ) {
             var grid = document.getElementById( 'verdictGrid' )
             var cats = data.categories
+            var http = data.entries.http
             var mcp = data.entries.mcp
             var a2a = data.entries.a2a
             var ui = data.entries.ui
             var x402 = mcp ? mcp.x402 : null
             var oauth = mcp ? mcp.oauth : null
             var assessment = data.entries.assessment
+            var summary = data.summary || {}
 
             var cards = [
+                {
+                    label: 'HTTP',
+                    pass: cats.isHttpReachable,
+                    detail: cats.isHttpReachable
+                        ? ( cats.isHttps ? 'HTTPS' : 'HTTP' ) + ' · ' + ( summary.httpStatusCode || ( http ? http.statusCode : '-' ) ) + ( http && http.responseTimeMs !== null ? ' · ' + http.responseTimeMs + 'ms' : '' )
+                        : 'Not reachable'
+                },
                 {
                     label: 'MCP',
                     pass: cats.supportsMcp,
@@ -233,10 +242,15 @@
         function renderDetails( data ) {
             var container = document.getElementById( 'detailSections' )
             var cats = data.categories
+            var http = data.entries.http
             var mcp = data.entries.mcp
             var a2a = data.entries.a2a
             var ui = data.entries.ui
             var html = ''
+
+            if( http ) {
+                html += renderHttpDetail( http, cats )
+            }
 
             if( cats.supportsMcp && mcp ) {
                 html += renderMcpDetail( mcp, cats, ui )
@@ -263,6 +277,64 @@
             }
 
             container.innerHTML = html
+        }
+
+        // ── HTTP Detail ──
+
+        function renderHttpDetail( http, cats ) {
+            var html = '<div class="detail-section"><h3>HTTP / HTTPS</h3>'
+            html += '<div class="probe-summary">'
+            html += '<div class="field"><span class="label">Protocol:</span> <span>' + escapeHtml( http.protocol || '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">Status Code:</span> <span>' + ( http.statusCode || '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">Response Time:</span> <span>' + ( http.responseTimeMs !== null ? http.responseTimeMs + ' ms' : '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">Content-Type:</span> <span>' + escapeHtml( http.contentType || '-' ) + '</span></div>'
+            html += '<div class="field"><span class="label">IP Address:</span> <span>' + escapeHtml( http.ipAddress || '-' ) + '</span></div>'
+
+            if( http.serverHeader ) {
+                html += '<div class="field"><span class="label">Server:</span> <span>' + escapeHtml( http.serverHeader ) + '</span></div>'
+            }
+
+            if( cats.isHttps ) {
+                html += '<div class="field"><span class="label">TLS Version:</span> <span>' + escapeHtml( http.sslProtocol || '-' ) + '</span></div>'
+
+                if( http.sslIssuer ) {
+                    html += '<div class="field"><span class="label">SSL Issuer:</span> <span>' + escapeHtml( http.sslIssuer ) + '</span></div>'
+                }
+
+                if( http.sslExpiresAt ) {
+                    html += '<div class="field"><span class="label">SSL Expires:</span> <span>' + escapeHtml( http.sslExpiresAt ) + '</span></div>'
+                }
+            }
+
+            if( http.redirectChain && http.redirectChain.length > 0 ) {
+                html += '<div class="field"><span class="label">Redirects:</span> <span>' + http.redirectCount + '</span></div>'
+
+                http.redirectChain.forEach( function( r ) {
+                    html += '<div class="field" style="padding-left:16px"><span class="label">' + r.statusCode + '</span> <span>'
+                    html += escapeHtml( r.from ) + ' &rarr; ' + escapeHtml( r.to )
+                    html += '</span></div>'
+                } )
+            }
+
+            html += '</div>'
+
+            html += '<h3 style="margin-top:16px">Categories</h3>'
+            html += renderCategoryGrid( {
+                'isHttpReachable': cats.isHttpReachable,
+                'isHttps': cats.isHttps,
+                'hasValidSsl': cats.hasValidSsl,
+                'hasSslCertificate': cats.hasSslCertificate,
+                'hasRedirects': cats.hasRedirects,
+                'isWebsite': cats.isWebsite,
+                'isApiEndpoint': cats.isApiEndpoint,
+                'hasServerHeader': cats.hasServerHeader,
+                'supportsCors': cats.supportsCors,
+                'supportsHttp2': cats.supportsHttp2
+            } )
+
+            html += '</div>'
+
+            return html
         }
 
         // ── MCP Detail ──

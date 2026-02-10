@@ -26,6 +26,16 @@ describe( 'AssessmentProbe', () => {
                     { code: 'PRB-001', severity: 'INFO', layer: 1, location: 'tools', message: 'PRB-001 tools: Found 3 tools' }
                 ],
                 categories: {
+                    isHttpReachable: true,
+                    isHttps: true,
+                    hasValidSsl: true,
+                    hasSslCertificate: true,
+                    hasRedirects: false,
+                    isWebsite: false,
+                    isApiEndpoint: false,
+                    hasServerHeader: true,
+                    supportsCors: false,
+                    supportsHttp2: true,
                     isReachable: true,
                     supportsMcp: true,
                     hasTools: true,
@@ -60,6 +70,19 @@ describe( 'AssessmentProbe', () => {
                 entries: {
                     endpoint: 'https://mcp.test.com/sse',
                     timestamp: '2026-02-07T10:00:00.000Z',
+                    http: {
+                        protocol: 'https',
+                        statusCode: 200,
+                        redirectCount: 0,
+                        redirectChain: [],
+                        contentType: 'application/json',
+                        serverHeader: 'nginx',
+                        responseTimeMs: 85,
+                        sslProtocol: 'TLSv1.3',
+                        sslIssuer: 'Let\'s Encrypt',
+                        sslExpiresAt: '2027-01-01T00:00:00.000Z',
+                        ipAddress: '93.184.216.34'
+                    },
                     mcp: {
                         serverName: 'test-server',
                         serverVersion: '1.0.0',
@@ -94,6 +117,10 @@ describe( 'AssessmentProbe', () => {
 
             expect( probeResult[ 'status' ] ).toBe( true )
             expect( probeResult[ 'timestamp' ] ).toBe( '2026-02-07T10:00:00.000Z' )
+            expect( probeResult[ 'categories' ][ 'isHttpReachable' ] ).toBe( true )
+            expect( probeResult[ 'categories' ][ 'isHttps' ] ).toBe( true )
+            expect( probeResult[ 'categories' ][ 'hasValidSsl' ] ).toBe( true )
+            expect( probeResult[ 'categories' ][ 'supportsHttp2' ] ).toBe( true )
             expect( probeResult[ 'categories' ][ 'isReachable' ] ).toBe( true )
             expect( probeResult[ 'categories' ][ 'supportsMcp' ] ).toBe( true )
             expect( probeResult[ 'categories' ][ 'hasTools' ] ).toBe( true )
@@ -106,6 +133,9 @@ describe( 'AssessmentProbe', () => {
             expect( probeResult[ 'summary' ][ 'schemes' ] ).toEqual( [ 'exact' ] )
             expect( probeResult[ 'summary' ][ 'grade' ] ).toBe( 'A' )
             expect( probeResult[ 'summary' ][ 'specVersion' ] ).toBe( '2025-03-26' )
+            expect( probeResult[ 'summary' ][ 'httpStatusCode' ] ).toBe( 200 )
+            expect( probeResult[ 'summary' ][ 'httpResponseTimeMs' ] ).toBe( 85 )
+            expect( probeResult[ 'summary' ][ 'httpProtocol' ] ).toBe( 'https' )
             expect( probeResult[ 'categories' ][ 'specVersion' ] ).toBe( '2025-03-26' )
             expect( probeResult[ 'messages' ] ).toHaveLength( 1 )
         } )
@@ -204,11 +234,15 @@ describe( 'AssessmentProbe', () => {
             } )
 
             expect( probeResult[ 'status' ] ).toBe( false )
+            expect( probeResult[ 'categories' ][ 'isHttpReachable' ] ).toBe( false )
+            expect( probeResult[ 'categories' ][ 'isHttps' ] ).toBe( false )
             expect( probeResult[ 'categories' ][ 'isReachable' ] ).toBe( false )
             expect( probeResult[ 'categories' ][ 'supportsMcp' ] ).toBe( false )
             expect( probeResult[ 'categories' ][ 'hasA2aCard' ] ).toBe( false )
             expect( probeResult[ 'summary' ][ 'serverName' ] ).toBe( null )
             expect( probeResult[ 'summary' ][ 'grade' ] ).toBe( null )
+            expect( probeResult[ 'summary' ][ 'httpStatusCode' ] ).toBe( null )
+            expect( probeResult[ 'summary' ][ 'httpProtocol' ] ).toBe( null )
             expect( probeResult[ 'categories' ][ 'supportsLogging' ] ).toBe( false )
             expect( probeResult[ 'categories' ][ 'specVersion' ] ).toBe( null )
             expect( probeResult[ 'categories' ][ 'supportsA2aAp2' ] ).toBe( false )
