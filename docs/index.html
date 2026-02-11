@@ -1512,7 +1512,7 @@
                         oasfDomains: rawMeta ? rawMeta.oasfDomains : null,
                         owner: r.owner || entries.ownerAddress || null,
                         agentUri: r.agentUri || null,
-                        uriType: entries.uriAgentType || r.categories && r.categories.isBase64 ? 'base64' : r.categories && r.categories.isHttp ? 'http' : null
+                        uriType: entries.uriAgentType || ( r.categories && r.categories.isBase64 ? 'base64' : r.categories && r.categories.isHttp ? 'http' : null )
                     },
                     reputation: rep,
                     assessment: null
