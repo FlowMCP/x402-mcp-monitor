@@ -611,6 +611,75 @@
             return wrapCollapsible( 'HTTP / HTTPS', inner, false )
         }
 
+        // ── OASF (Open Agent Schema Framework) ──
+        // Taxonomy: https://github.com/agntcy/oasf
+        // All OASF logic lives here — parsing, grouping, rendering
+        // Data format: arrays with comma-separated path strings
+        //   e.g. ["blockchain/smart_contract_deployment, blockchain/token_creation"]
+
+        function parseOasfEntries( raw ) {
+            if( !raw || !Array.isArray( raw ) || raw.length === 0 ) { return {} }
+
+            var groups = {}
+
+            raw.forEach( function( item ) {
+                var parts = typeof item === 'string' ? item.split( ', ' ) : []
+
+                parts.forEach( function( path ) {
+                    var trimmed = path.trim()
+
+                    if( !trimmed ) { return }
+
+                    var segments = trimmed.split( '/' )
+                    var category = segments[ 0 ].replace( /_/g, ' ' )
+                    var skill = segments.length > 1 ? segments.slice( 1 ).join( ' / ' ).replace( /_/g, ' ' ) : null
+
+                    if( !groups[ category ] ) { groups[ category ] = [] }
+
+                    if( skill ) { groups[ category ].push( skill ) }
+                } )
+            } )
+
+            return groups
+        }
+
+        function renderOasfSection( oasfSkills, oasfDomains ) {
+            var skillGroups = parseOasfEntries( oasfSkills )
+            var domainGroups = parseOasfEntries( oasfDomains )
+            var hasSkills = Object.keys( skillGroups ).length > 0
+            var hasDomains = Object.keys( domainGroups ).length > 0
+
+            if( !hasSkills && !hasDomains ) { return '' }
+
+            var html = '</div>'
+            html += '<h3 style="margin-top:16px">OASF Classification</h3>'
+            html += '<div class="probe-summary">'
+
+            if( hasDomains ) {
+                html += '<div class="field" style="flex-wrap:wrap"><span class="label">Domains:</span> <span>'
+
+                Object.keys( domainGroups ).forEach( function( group ) {
+                    html += '<span class="badge badge-green" style="margin:2px;text-transform:capitalize">' + escapeHtml( group ) + '</span> '
+                } )
+
+                html += '</span></div>'
+            }
+
+            if( hasSkills ) {
+                Object.keys( skillGroups ).forEach( function( group ) {
+                    html += '<div class="field" style="flex-wrap:wrap;align-items:flex-start"><span class="label" style="text-transform:capitalize">' + escapeHtml( group ) + ':</span> <span>'
+
+                    skillGroups[ group ].forEach( function( s ) {
+                        html += '<span class="badge badge-purple" style="margin:2px;text-transform:capitalize">' + escapeHtml( s ) + '</span> '
+                    } )
+
+                    html += '</span></div>'
+                } )
+            }
+
+            return html
+        }
+
         // ── ERC-8004 Detail ──
 
         function renderEndpointLink( ep ) {
@@ -745,6 +814,8 @@
 
                     inner += '</span></div>'
                 }
+
+                inner += renderOasfSection( erc8004.oasfSkills, erc8004.oasfDomains )
             } else {
                 inner += '<div class="field"><span class="label">Status:</span> <span>No on-chain registration found</span></div>'
             }
