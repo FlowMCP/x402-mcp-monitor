@@ -328,7 +328,7 @@ class Server {
 
         const agentCard = {
             name: 'MCP Agent Validator',
-            description: 'Multi-protocol assessment engine for MCP servers, A2A agents, x402 payments, OAuth 2.1, MCP Apps, and ERC-8004 registries. Validates endpoints via server-side probes and provides detailed compatibility reports.',
+            description: 'Multi-protocol assessment engine for MCP servers, A2A/AP2 agents, x402 payments, OAuth 2.1, MCP Apps, ERC-8004 registries, and OASF classification. Validates endpoints via server-side probes and provides detailed compatibility reports.',
             version: '0.2.0',
             documentation_url: 'https://github.com/FlowMCP/mcp-agent-validator',
             provider: {
