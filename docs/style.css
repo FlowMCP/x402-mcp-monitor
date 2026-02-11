@@ -389,6 +389,21 @@ html, body {
     color: #818cf8;
 }
 
+/* ── Endpoint Links ── */
+.endpoint-link {
+    color: #818cf8;
+    text-decoration: none;
+    font-family: SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 12px;
+    word-break: break-all;
+    transition: color 0.15s;
+}
+
+.endpoint-link:hover {
+    color: #a5b4fc;
+    text-decoration: underline;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .verdict-grid {

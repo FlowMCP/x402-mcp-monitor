@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MCP Agent Validator</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%236366f1'/><path d='M30 50l15 15 25-30' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -74,7 +75,7 @@
                     <span>Try:</span>
                     <a class="example-link cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-url="https://x402.flowmcp.org/mcp/streamable">x402.flowmcp.org</a>
                     <span class="text-gray-700">·</span>
-                    <a class="example-link cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-url="https://blackjack.nanobot.ai/mcp">blackjack.nanobot.ai</a>
+                    <a class="example-link cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-url="self">Self-Assessment</a>
                 </div>
             </div>
 
@@ -96,9 +97,13 @@
                         Lookup
                     </button>
                 </div>
-                <div class="mt-3 flex items-center gap-3 text-sm text-gray-500">
+                <div class="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-500">
                     <span>Try:</span>
-                    <a class="lookup-example cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-id="1">Agent #1 on Base Sepolia</a>
+                    <a class="lookup-example cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-id="9382" data-chain="1">Agent #9382 on Ethereum</a>
+                    <span class="text-gray-700">·</span>
+                    <a class="lookup-example cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-id="2340" data-chain="8453">Agent #2340 on Base</a>
+                    <span class="text-gray-700">·</span>
+                    <a class="lookup-example cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-id="1" data-chain="84532">Agent #1 on Base Sepolia</a>
                 </div>
             </div>
 
@@ -608,35 +613,102 @@
 
         // ── ERC-8004 Detail ──
 
+        function renderEndpointLink( ep ) {
+            var name = ep.name || 'link'
+            var url = ep.endpoint || ''
+
+            if( !url ) { return '' }
+
+            var isLink = url.startsWith( 'http' ) || url.startsWith( 'did:' )
+            var icon = ''
+            var badgeClass = 'badge-blue'
+
+            if( name === 'mcp' ) { icon = ''; badgeClass = 'badge-purple' }
+            else if( name === 'a2a' || name === 'oasf' ) { badgeClass = 'badge-purple' }
+            else if( name === 'web' || name === 'docs' ) { badgeClass = 'badge-green' }
+            else if( name === 'email' ) { badgeClass = 'badge-green' }
+            else if( name === 'twitter' ) { badgeClass = 'badge-blue' }
+            else if( name === 'wallet' || name === 'basescan' ) { badgeClass = 'badge-green' }
+
+            var html = '<div class="field" style="padding-left:16px">'
+            html += '<span class="badge ' + badgeClass + '">' + escapeHtml( name ) + '</span> '
+
+            if( name === 'email' ) {
+                html += '<a href="mailto:' + escapeHtml( url ) + '" class="endpoint-link">' + escapeHtml( url ) + '</a>'
+            } else if( isLink ) {
+                html += '<a href="' + escapeHtml( url ) + '" target="_blank" rel="noopener" class="endpoint-link">' + escapeHtml( url ) + '</a>'
+            } else {
+                html += '<span style="font-family:monospace;font-size:12px">' + escapeHtml( url.length > 50 ? url.substring( 0, 24 ) + '...' + url.slice( -20 ) : url ) + '</span>'
+            }
+
+            if( ep.version ) {
+                html += ' <span class="badge badge-blue" style="font-size:10px">' + escapeHtml( ep.version ) + '</span>'
+            }
+
+            html += '</div>'
+
+            return html
+        }
+
         function renderErc8004Detail( erc8004, reputation, cats ) {
             var inner = '<div class="probe-summary">'
 
             if( erc8004 ) {
+                if( erc8004.image ) {
+                    inner += '<div style="text-align:center;margin-bottom:16px"><img src="' + escapeHtml( erc8004.image ) + '" alt="Agent" style="width:64px;height:64px;border-radius:12px;object-fit:cover;border:1px solid rgba(255,255,255,0.1)"></div>'
+                }
+
                 inner += '<div class="field"><span class="label">Agent ID:</span> <span>' + escapeHtml( String( erc8004.agentId ) ) + '</span></div>'
                 inner += '<div class="field"><span class="label">Registry:</span> <span style="font-family:monospace;font-size:12px">' + escapeHtml( erc8004.agentRegistry || '-' ) + '</span></div>'
                 var chainDisplayName = CHAIN_NAMES[ erc8004.chainAlias ] || erc8004.chainAlias || '-'
                 inner += '<div class="field"><span class="label">Chain:</span> <span>' + escapeHtml( chainDisplayName ) + ( erc8004.chainId ? ' (' + erc8004.chainId + ')' : '' ) + '</span></div>'
+
+                if( erc8004.owner ) {
+                    inner += '<div class="field"><span class="label">Owner:</span> <span style="font-family:monospace;font-size:12px">' + escapeHtml( erc8004.owner ) + '</span></div>'
+                }
 
                 if( erc8004.registrationName ) {
                     inner += '<div class="field"><span class="label">Name:</span> <span>' + escapeHtml( erc8004.registrationName ) + '</span></div>'
                 }
 
                 if( erc8004.registrationDescription ) {
-                    inner += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( erc8004.registrationDescription ) + '</span></div>'
+                    inner += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( erc8004.registrationDescription.substring( 0, 300 ) ) + ( erc8004.registrationDescription.length > 300 ? '...' : '' ) + '</span></div>'
                 }
 
                 inner += '<div class="field"><span class="label">On-Chain Verified:</span> <span>' + ( erc8004.isOnChainVerified ? 'Yes' : 'No' ) + '</span></div>'
                 inner += '<div class="field"><span class="label">Spec Compliant:</span> <span>' + ( erc8004.isSpecCompliant ? 'Yes' : 'No' ) + '</span></div>'
 
-                if( erc8004.x402Support !== null ) {
+                if( erc8004.uriType ) {
+                    inner += '<div class="field"><span class="label">URI Type:</span> <span><span class="badge badge-blue">' + escapeHtml( erc8004.uriType ) + '</span></span></div>'
+                }
+
+                if( erc8004.x402Support !== null && erc8004.x402Support !== undefined ) {
                     inner += '<div class="field"><span class="label">x402 Support:</span> <span>' + ( erc8004.x402Support ? 'Yes' : 'No' ) + '</span></div>'
                 }
 
-                if( erc8004.isActive !== null ) {
+                if( erc8004.isActive !== null && erc8004.isActive !== undefined ) {
                     inner += '<div class="field"><span class="label">Active:</span> <span>' + ( erc8004.isActive ? 'Yes' : 'No' ) + '</span></div>'
                 }
 
-                if( erc8004.services && erc8004.services.length > 0 ) {
+                if( erc8004.supportedTrust && erc8004.supportedTrust.length > 0 ) {
+                    inner += '<div class="field"><span class="label">Trust Models:</span> <span>'
+
+                    erc8004.supportedTrust.forEach( function( t ) {
+                        inner += '<span class="badge badge-purple">' + escapeHtml( t ) + '</span> '
+                    } )
+
+                    inner += '</span></div>'
+                }
+
+                if( erc8004.endpoints && erc8004.endpoints.length > 0 ) {
+                    inner += '</div>'
+                    inner += '<h3 style="margin-top:16px">Endpoints (' + erc8004.endpoints.length + ')</h3>'
+                    inner += '<div class="probe-summary">'
+
+                    erc8004.endpoints.forEach( function( ep ) {
+                        inner += renderEndpointLink( ep )
+                    } )
+                } else if( erc8004.services && erc8004.services.length > 0 ) {
                     inner += '<div class="field"><span class="label">Services:</span> <span>' + erc8004.services.length + '</span></div>'
 
                     erc8004.services.forEach( function( svc ) {
@@ -645,12 +717,42 @@
                         inner += '</span></div>'
                     } )
                 }
+
+                if( erc8004.agentUri && !erc8004.endpoints ) {
+                    inner += '<div class="field"><span class="label">Agent URI:</span> <span>'
+
+                    if( erc8004.agentUri.startsWith( 'http' ) ) {
+                        inner += '<a href="' + escapeHtml( erc8004.agentUri ) + '" target="_blank" rel="noopener" class="endpoint-link">' + escapeHtml( erc8004.agentUri.length > 60 ? erc8004.agentUri.substring( 0, 30 ) + '...' + erc8004.agentUri.slice( -24 ) : erc8004.agentUri ) + '</a>'
+                    } else {
+                        inner += '<span style="font-family:monospace;font-size:12px">' + escapeHtml( erc8004.agentUri.substring( 0, 80 ) ) + ( erc8004.agentUri.length > 80 ? '...' : '' ) + '</span>'
+                    }
+
+                    inner += '</span></div>'
+                }
+
+                if( erc8004.tags && erc8004.tags.length > 0 ) {
+                    inner += '</div>'
+                    inner += '<h3 style="margin-top:16px">Tags</h3>'
+                    inner += '<div class="probe-summary"><div class="field"><span>'
+
+                    var tagList = Array.isArray( erc8004.tags ) ? erc8004.tags : erc8004.tags[0].split( ', ' )
+
+                    tagList.forEach( function( tag ) {
+                        var t = typeof tag === 'string' ? tag.trim() : tag
+
+                        if( t ) { inner += '<span class="badge badge-blue" style="margin:2px">' + escapeHtml( t ) + '</span> ' }
+                    } )
+
+                    inner += '</span></div>'
+                }
             } else {
                 inner += '<div class="field"><span class="label">Status:</span> <span>No on-chain registration found</span></div>'
             }
 
             if( reputation ) {
+                inner += '</div>'
                 inner += '<h3 style="margin-top:16px">On-Chain Reputation</h3>'
+                inner += '<div class="probe-summary">'
 
                 if( reputation.feedbackCount !== null ) {
                     inner += '<div class="field"><span class="label">Feedback Count:</span> <span>' + reputation.feedbackCount + '</span></div>'
@@ -1333,10 +1435,42 @@
 
         // ── Adapt Lookup Response ──
 
+        function parseRawEndpoints( raw ) {
+            if( !raw ) { return null }
+
+            try {
+                var parsed = typeof raw === 'string' ? JSON.parse( raw ) : raw
+
+                return parsed.endpoints || null
+            } catch( _e ) {
+                return null
+            }
+        }
+
+        function parseRawMetadata( raw ) {
+            if( !raw ) { return null }
+
+            try {
+                var parsed = typeof raw === 'string' ? JSON.parse( raw ) : raw
+
+                return {
+                    image: parsed.image || null,
+                    tags: parsed.tags || null,
+                    oasfSkills: parsed.oasf_skills || null,
+                    oasfDomains: parsed.oasf_domains || null,
+                    type: parsed.type || null
+                }
+            } catch( _e ) {
+                return null
+            }
+        }
+
         function adaptLookupResponse( lookupData ) {
             var r = lookupData.result || {}
             var entries = r.entries || {}
             var rep = r.reputation && r.reputation.feedbackCount !== null ? r.reputation : null
+            var rawEndpoints = parseRawEndpoints( entries.raw )
+            var rawMeta = parseRawMetadata( entries.raw )
 
             return {
                 status: lookupData.status,
@@ -1369,7 +1503,16 @@
                         isSpecCompliant: r.isSpecCompliant || false,
                         x402Support: r.x402Support,
                         isActive: r.isActive,
-                        services: r.services
+                        services: r.services,
+                        endpoints: rawEndpoints,
+                        image: entries.image || ( rawMeta ? rawMeta.image : null ),
+                        supportedTrust: r.supportedTrust || ( entries.supportedTrust || null ),
+                        tags: rawMeta ? rawMeta.tags : null,
+                        oasfSkills: rawMeta ? rawMeta.oasfSkills : null,
+                        oasfDomains: rawMeta ? rawMeta.oasfDomains : null,
+                        owner: r.owner || entries.ownerAddress || null,
+                        agentUri: r.agentUri || null,
+                        uriType: entries.uriAgentType || r.categories && r.categories.isBase64 ? 'base64' : r.categories && r.categories.isHttp ? 'http' : null
                     },
                     reputation: rep,
                     assessment: null
@@ -1444,8 +1587,9 @@
             link.addEventListener( 'click', function( e ) {
                 e.preventDefault()
                 var input = document.getElementById( 'urlInput' )
+                var url = link.getAttribute( 'data-url' )
 
-                input.value = link.getAttribute( 'data-url' )
+                input.value = url === 'self' ? window.location.origin + '/mcp' : url
                 validate()
             } )
         } )
@@ -1454,8 +1598,16 @@
             link.addEventListener( 'click', function( e ) {
                 e.preventDefault()
                 var input = document.getElementById( 'agentIdInput' )
+                var chainSelect = document.getElementById( 'chainSelect' )
+                var chain = link.getAttribute( 'data-chain' )
 
                 input.value = link.getAttribute( 'data-id' )
+
+                if( chain ) {
+                    chainSelect.value = chain
+                    localStorage.setItem( 'mcpValidator_chainId', chain )
+                }
+
                 switchTab( 'lookup' )
                 lookup()
             } )
