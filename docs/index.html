@@ -10,19 +10,35 @@
     <div class="container">
         <header>
             <h1>MCP Agent Validator</h1>
-            <p class="subtitle">Validate MCP, A2A, x402, OAuth, and MCP Apps endpoints</p>
+            <p class="subtitle">Multi-protocol endpoint assessment: MCP, A2A, x402, OAuth, MCP Apps, ERC-8004</p>
         </header>
 
         <div>
             <div class="validator-input">
-                <input type="text" id="urlInput" placeholder="https://your-endpoint.example.com" spellcheck="false">
+                <input type="text" id="urlInput" placeholder="Enter endpoint URL or agent ID" spellcheck="false">
                 <button class="validator-btn" id="validateBtn">Validate</button>
             </div>
+
+            <div class="chain-selector" id="chainSelector" style="display:none">
+                <label for="chainSelect">Chain:</label>
+                <select id="chainSelect">
+                    <option value="84532">Base Sepolia (84532)</option>
+                    <option value="11155111">Sepolia (11155111)</option>
+                    <option value="8453">Base (8453)</option>
+                    <option value="1">Ethereum (1)</option>
+                    <option value="10">Optimism (10)</option>
+                    <option value="137">Polygon (137)</option>
+                    <option value="42161">Arbitrum (42161)</option>
+                </select>
+            </div>
+
+            <div class="input-hint" id="inputHint">Accepts endpoint URLs or ERC-8004 agent IDs (numeric)</div>
 
             <div class="example-urls">
                 <span>Try:</span>
                 <a data-url="https://x402.flowmcp.org/mcp/streamable">x402.flowmcp.org/mcp/streamable</a>
                 <a data-url="https://blackjack.nanobot.ai/mcp">blackjack.nanobot.ai/mcp</a>
+                <a data-url="#1" data-type="agent">Agent #1</a>
             </div>
 
             <div class="error-message" id="errorBox"></div>
@@ -82,6 +98,34 @@
 
         function show( el ) { el.style.display = 'block' }
         function hide( el ) { el.style.display = 'none' }
+
+        function toggleSection( toggleEl ) {
+            var content = toggleEl.nextElementSibling
+            var arrow = toggleEl.querySelector( '.section-arrow' )
+
+            if( content.style.display === 'none' ) {
+                content.style.display = 'block'
+                arrow.textContent = '\u25BC'
+            } else {
+                content.style.display = 'none'
+                arrow.textContent = '\u25B6'
+            }
+        }
+
+        function wrapCollapsible( title, innerHtml, defaultOpen ) {
+            var arrow = defaultOpen ? '\u25BC' : '\u25B6'
+            var display = defaultOpen ? 'block' : 'none'
+
+            return '<div class="detail-section">' +
+                '<div class="section-toggle" onclick="toggleSection(this)">' +
+                '<span class="section-arrow">' + arrow + '</span>' +
+                '<h3>' + escapeHtml( title ) + '</h3>' +
+                '</div>' +
+                '<div class="section-content" style="display:' + display + '">' +
+                innerHtml +
+                '</div>' +
+                '</div>'
+        }
 
         function renderCategoryGrid( obj ) {
             var html = '<div class="categories-grid">'
@@ -301,44 +345,43 @@
         // ── HTTP Detail ──
 
         function renderHttpDetail( http, cats ) {
-            var html = '<div class="detail-section"><h3>HTTP / HTTPS</h3>'
-            html += '<div class="probe-summary">'
-            html += '<div class="field"><span class="label">Protocol:</span> <span>' + escapeHtml( http.protocol || '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">Status Code:</span> <span>' + ( http.statusCode || '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">Response Time:</span> <span>' + ( http.responseTimeMs !== null ? http.responseTimeMs + ' ms' : '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">Content-Type:</span> <span>' + escapeHtml( http.contentType || '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">IP Address:</span> <span>' + escapeHtml( http.ipAddress || '-' ) + '</span></div>'
+            var inner = '<div class="probe-summary">'
+            inner += '<div class="field"><span class="label">Protocol:</span> <span>' + escapeHtml( http.protocol || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Status Code:</span> <span>' + ( http.statusCode || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Response Time:</span> <span>' + ( http.responseTimeMs !== null ? http.responseTimeMs + ' ms' : '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Content-Type:</span> <span>' + escapeHtml( http.contentType || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">IP Address:</span> <span>' + escapeHtml( http.ipAddress || '-' ) + '</span></div>'
 
             if( http.serverHeader ) {
-                html += '<div class="field"><span class="label">Server:</span> <span>' + escapeHtml( http.serverHeader ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Server:</span> <span>' + escapeHtml( http.serverHeader ) + '</span></div>'
             }
 
             if( cats.isHttps ) {
-                html += '<div class="field"><span class="label">TLS Version:</span> <span>' + escapeHtml( http.sslProtocol || '-' ) + '</span></div>'
+                inner += '<div class="field"><span class="label">TLS Version:</span> <span>' + escapeHtml( http.sslProtocol || '-' ) + '</span></div>'
 
                 if( http.sslIssuer ) {
-                    html += '<div class="field"><span class="label">SSL Issuer:</span> <span>' + escapeHtml( http.sslIssuer ) + '</span></div>'
+                    inner += '<div class="field"><span class="label">SSL Issuer:</span> <span>' + escapeHtml( http.sslIssuer ) + '</span></div>'
                 }
 
                 if( http.sslExpiresAt ) {
-                    html += '<div class="field"><span class="label">SSL Expires:</span> <span>' + escapeHtml( http.sslExpiresAt ) + '</span></div>'
+                    inner += '<div class="field"><span class="label">SSL Expires:</span> <span>' + escapeHtml( http.sslExpiresAt ) + '</span></div>'
                 }
             }
 
             if( http.redirectChain && http.redirectChain.length > 0 ) {
-                html += '<div class="field"><span class="label">Redirects:</span> <span>' + http.redirectCount + '</span></div>'
+                inner += '<div class="field"><span class="label">Redirects:</span> <span>' + http.redirectCount + '</span></div>'
 
                 http.redirectChain.forEach( function( r ) {
-                    html += '<div class="field" style="padding-left:16px"><span class="label">' + r.statusCode + '</span> <span>'
-                    html += escapeHtml( r.from ) + ' &rarr; ' + escapeHtml( r.to )
-                    html += '</span></div>'
+                    inner += '<div class="field" style="padding-left:16px"><span class="label">' + r.statusCode + '</span> <span>'
+                    inner += escapeHtml( r.from ) + ' &rarr; ' + escapeHtml( r.to )
+                    inner += '</span></div>'
                 } )
             }
 
-            html += '</div>'
+            inner += '</div>'
 
-            html += '<h3 style="margin-top:16px">Categories</h3>'
-            html += renderCategoryGrid( {
+            inner += '<h3 style="margin-top:16px">Categories</h3>'
+            inner += renderCategoryGrid( {
                 'isHttpReachable': cats.isHttpReachable,
                 'isHttps': cats.isHttps,
                 'hasValidSsl': cats.hasValidSsl,
@@ -351,9 +394,7 @@
                 'supportsHttp2': cats.supportsHttp2
             } )
 
-            html += '</div>'
-
-            return html
+            return wrapCollapsible( 'HTTP / HTTPS', inner, false )
         }
 
         // ── ERC-8004 Chain Names ──
@@ -380,71 +421,70 @@
         // ── ERC-8004 Detail ──
 
         function renderErc8004Detail( erc8004, reputation, cats ) {
-            var html = '<div class="detail-section"><h3>ERC-8004 / Reputation</h3>'
-            html += '<div class="probe-summary">'
+            var inner = '<div class="probe-summary">'
 
             if( erc8004 ) {
-                html += '<div class="field"><span class="label">Agent ID:</span> <span>' + escapeHtml( String( erc8004.agentId ) ) + '</span></div>'
-                html += '<div class="field"><span class="label">Registry:</span> <span style="font-family:monospace;font-size:12px">' + escapeHtml( erc8004.agentRegistry || '-' ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Agent ID:</span> <span>' + escapeHtml( String( erc8004.agentId ) ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Registry:</span> <span style="font-family:monospace;font-size:12px">' + escapeHtml( erc8004.agentRegistry || '-' ) + '</span></div>'
                 var chainDisplayName = CHAIN_NAMES[ erc8004.chainAlias ] || erc8004.chainAlias || '-'
-                html += '<div class="field"><span class="label">Chain:</span> <span>' + escapeHtml( chainDisplayName ) + ( erc8004.chainId ? ' (' + erc8004.chainId + ')' : '' ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Chain:</span> <span>' + escapeHtml( chainDisplayName ) + ( erc8004.chainId ? ' (' + erc8004.chainId + ')' : '' ) + '</span></div>'
 
                 if( erc8004.registrationName ) {
-                    html += '<div class="field"><span class="label">Name:</span> <span>' + escapeHtml( erc8004.registrationName ) + '</span></div>'
+                    inner += '<div class="field"><span class="label">Name:</span> <span>' + escapeHtml( erc8004.registrationName ) + '</span></div>'
                 }
 
                 if( erc8004.registrationDescription ) {
-                    html += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( erc8004.registrationDescription ) + '</span></div>'
+                    inner += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( erc8004.registrationDescription ) + '</span></div>'
                 }
 
-                html += '<div class="field"><span class="label">On-Chain Verified:</span> <span>' + ( erc8004.isOnChainVerified ? 'Yes' : 'No' ) + '</span></div>'
-                html += '<div class="field"><span class="label">Spec Compliant:</span> <span>' + ( erc8004.isSpecCompliant ? 'Yes' : 'No' ) + '</span></div>'
+                inner += '<div class="field"><span class="label">On-Chain Verified:</span> <span>' + ( erc8004.isOnChainVerified ? 'Yes' : 'No' ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Spec Compliant:</span> <span>' + ( erc8004.isSpecCompliant ? 'Yes' : 'No' ) + '</span></div>'
 
                 if( erc8004.x402Support !== null ) {
-                    html += '<div class="field"><span class="label">x402 Support:</span> <span>' + ( erc8004.x402Support ? 'Yes' : 'No' ) + '</span></div>'
+                    inner += '<div class="field"><span class="label">x402 Support:</span> <span>' + ( erc8004.x402Support ? 'Yes' : 'No' ) + '</span></div>'
                 }
 
                 if( erc8004.isActive !== null ) {
-                    html += '<div class="field"><span class="label">Active:</span> <span>' + ( erc8004.isActive ? 'Yes' : 'No' ) + '</span></div>'
+                    inner += '<div class="field"><span class="label">Active:</span> <span>' + ( erc8004.isActive ? 'Yes' : 'No' ) + '</span></div>'
                 }
 
                 if( erc8004.services && erc8004.services.length > 0 ) {
-                    html += '<div class="field"><span class="label">Services:</span> <span>' + erc8004.services.length + '</span></div>'
+                    inner += '<div class="field"><span class="label">Services:</span> <span>' + erc8004.services.length + '</span></div>'
 
                     erc8004.services.forEach( function( svc ) {
-                        html += '<div class="field" style="padding-left:16px"><span class="label">' + escapeHtml( svc.type || 'service' ) + '</span> <span>'
-                        html += escapeHtml( svc.endpoint || svc.url || '-' )
-                        html += '</span></div>'
+                        inner += '<div class="field" style="padding-left:16px"><span class="label">' + escapeHtml( svc.type || 'service' ) + '</span> <span>'
+                        inner += escapeHtml( svc.endpoint || svc.url || '-' )
+                        inner += '</span></div>'
                     } )
                 }
             } else {
-                html += '<div class="field"><span class="label">Status:</span> <span>No on-chain registration found</span></div>'
+                inner += '<div class="field"><span class="label">Status:</span> <span>No on-chain registration found</span></div>'
             }
 
             if( reputation ) {
-                html += '<h3 style="margin-top:16px">On-Chain Reputation</h3>'
+                inner += '<h3 style="margin-top:16px">On-Chain Reputation</h3>'
 
                 if( reputation.feedbackCount !== null ) {
-                    html += '<div class="field"><span class="label">Feedback Count:</span> <span>' + reputation.feedbackCount + '</span></div>'
+                    inner += '<div class="field"><span class="label">Feedback Count:</span> <span>' + reputation.feedbackCount + '</span></div>'
                 }
 
                 if( reputation.averageValue !== null ) {
-                    html += '<div class="field"><span class="label">Average Value:</span> <span>' + reputation.averageValue + '</span></div>'
+                    inner += '<div class="field"><span class="label">Average Value:</span> <span>' + reputation.averageValue + '</span></div>'
                 }
 
                 if( reputation.validationCount !== null ) {
-                    html += '<div class="field"><span class="label">Validation Count:</span> <span>' + reputation.validationCount + '</span></div>'
+                    inner += '<div class="field"><span class="label">Validation Count:</span> <span>' + reputation.validationCount + '</span></div>'
                 }
 
                 if( reputation.averageResponse !== null ) {
-                    html += '<div class="field"><span class="label">Avg Response:</span> <span>' + reputation.averageResponse + '</span></div>'
+                    inner += '<div class="field"><span class="label">Avg Response:</span> <span>' + reputation.averageResponse + '</span></div>'
                 }
             }
 
-            html += '</div>'
+            inner += '</div>'
 
-            html += '<h3 style="margin-top:16px">Categories</h3>'
-            html += renderCategoryGrid( {
+            inner += '<h3 style="margin-top:16px">Categories</h3>'
+            inner += renderCategoryGrid( {
                 'hasWellKnownRegistration': cats.hasWellKnownRegistration,
                 'hasErc8004Registration': cats.hasErc8004Registration,
                 'isErc8004OnChainVerified': cats.isErc8004OnChainVerified,
@@ -452,33 +492,30 @@
                 'hasOnChainReputation': cats.hasOnChainReputation
             } )
 
-            html += '</div>'
-
-            return html
+            return wrapCollapsible( 'ERC-8004 / Reputation', inner, true )
         }
 
         // ── MCP Detail ──
 
         function renderMcpDetail( mcp, cats, ui ) {
-            var html = '<div class="detail-section"><h3>MCP Server</h3>'
-            html += '<div class="probe-summary">'
-            html += '<div class="field"><span class="label">Server Name:</span> <span>' + escapeHtml( mcp.serverName || '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">Server Version:</span> <span>' + escapeHtml( mcp.serverVersion || '-' ) + '</span></div>'
+            var inner = '<div class="probe-summary">'
+            inner += '<div class="field"><span class="label">Server Name:</span> <span>' + escapeHtml( mcp.serverName || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Server Version:</span> <span>' + escapeHtml( mcp.serverVersion || '-' ) + '</span></div>'
 
             if( mcp.serverDescription ) {
-                html += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( mcp.serverDescription ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( mcp.serverDescription ) + '</span></div>'
             }
 
             if( mcp.protocolVersion ) {
-                html += '<div class="field"><span class="label">Protocol Version:</span> <span>' + escapeHtml( mcp.protocolVersion ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Protocol Version:</span> <span>' + escapeHtml( mcp.protocolVersion ) + '</span></div>'
             }
 
-            html += '<div class="field"><span class="label">Tools:</span> <span>' + ( mcp.toolCount || 0 ) + '</span></div>'
-            html += '<div class="field"><span class="label">Resources:</span> <span>' + ( mcp.resourceCount || 0 ) + '</span></div>'
-            html += '<div class="field"><span class="label">Prompts:</span> <span>' + ( mcp.promptCount || 0 ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Tools:</span> <span>' + ( mcp.toolCount || 0 ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Resources:</span> <span>' + ( mcp.resourceCount || 0 ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Prompts:</span> <span>' + ( mcp.promptCount || 0 ) + '</span></div>'
 
             if( mcp.instructions ) {
-                html += '<div class="field"><span class="label">Instructions:</span> <span>' + escapeHtml( mcp.instructions.substring( 0, 200 ) ) + ( mcp.instructions.length > 200 ? '...' : '' ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Instructions:</span> <span>' + escapeHtml( mcp.instructions.substring( 0, 200 ) ) + ( mcp.instructions.length > 200 ? '...' : '' ) + '</span></div>'
             }
 
             var latency = mcp.latency || {}
@@ -486,28 +523,28 @@
             if( latency.ping !== null && latency.ping !== undefined ) {
                 var pingPct = Math.min( latency.ping / 5000 * 100, 100 )
 
-                html += '<div class="latency-bar">'
-                html += '<span class="latency-label">Ping Latency:</span>'
-                html += '<div class="latency-track"><div class="latency-fill" style="width:' + pingPct + '%"></div></div>'
-                html += '<span class="latency-value">' + latency.ping + ' ms</span>'
-                html += '</div>'
+                inner += '<div class="latency-bar">'
+                inner += '<span class="latency-label">Ping Latency:</span>'
+                inner += '<div class="latency-track"><div class="latency-fill" style="width:' + pingPct + '%"></div></div>'
+                inner += '<span class="latency-value">' + latency.ping + ' ms</span>'
+                inner += '</div>'
             }
 
             if( latency.listTools !== null && latency.listTools !== undefined ) {
                 var toolsPct = Math.min( latency.listTools / 5000 * 100, 100 )
 
-                html += '<div class="latency-bar">'
-                html += '<span class="latency-label">Tools Latency:</span>'
-                html += '<div class="latency-track"><div class="latency-fill" style="width:' + toolsPct + '%"></div></div>'
-                html += '<span class="latency-value">' + latency.listTools + ' ms</span>'
-                html += '</div>'
+                inner += '<div class="latency-bar">'
+                inner += '<span class="latency-label">Tools Latency:</span>'
+                inner += '<div class="latency-track"><div class="latency-fill" style="width:' + toolsPct + '%"></div></div>'
+                inner += '<span class="latency-value">' + latency.listTools + ' ms</span>'
+                inner += '</div>'
             }
 
-            html += '</div>'
+            inner += '</div>'
 
             // Core categories
-            html += '<h3 style="margin-top:16px">Core</h3>'
-            html += renderCategoryGrid( {
+            inner += '<h3 style="margin-top:16px">Core</h3>'
+            inner += renderCategoryGrid( {
                 'isReachable': cats.isReachable,
                 'supportsMcp': cats.supportsMcp,
                 'hasTools': cats.hasTools,
@@ -516,8 +553,8 @@
             } )
 
             // Extended capabilities
-            html += '<h3 style="margin-top:16px">Capabilities</h3>'
-            html += renderCategoryGrid( {
+            inner += '<h3 style="margin-top:16px">Capabilities</h3>'
+            inner += renderCategoryGrid( {
                 'supportsTasks': cats.supportsTasks,
                 'supportsMcpApps': cats.supportsMcpApps,
                 'supportsLogging': cats.supportsLogging,
@@ -535,29 +572,29 @@
             } )
 
             if( mcp.experimentalCapabilities && mcp.experimentalCapabilities.length > 0 ) {
-                html += '<div class="field" style="margin-top:8px"><span class="label">Experimental:</span> <span>'
+                inner += '<div class="field" style="margin-top:8px"><span class="label">Experimental:</span> <span>'
 
                 mcp.experimentalCapabilities.forEach( function( key ) {
-                    html += '<span class="badge badge-purple">' + escapeHtml( key ) + '</span> '
+                    inner += '<span class="badge badge-purple">' + escapeHtml( key ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             if( mcp.taskCapabilities ) {
-                html += '<div class="field" style="margin-top:8px"><span class="label">Task Features:</span> <span>'
+                inner += '<div class="field" style="margin-top:8px"><span class="label">Task Features:</span> <span>'
 
-                if( mcp.taskCapabilities.list ) { html += '<span class="badge badge-blue">list</span> ' }
-                if( mcp.taskCapabilities.cancel ) { html += '<span class="badge badge-blue">cancel</span> ' }
-                if( mcp.taskCapabilities.augmentedToolCall ) { html += '<span class="badge badge-blue">augmentedToolCall</span> ' }
+                if( mcp.taskCapabilities.list ) { inner += '<span class="badge badge-blue">list</span> ' }
+                if( mcp.taskCapabilities.cancel ) { inner += '<span class="badge badge-blue">cancel</span> ' }
+                if( mcp.taskCapabilities.augmentedToolCall ) { inner += '<span class="badge badge-blue">augmentedToolCall</span> ' }
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             // Tools list
             if( mcp.tools && mcp.tools.length > 0 ) {
-                html += '<h3 style="margin-top:16px">Tools</h3>'
-                html += '<div class="tools-grid">'
+                inner += '<h3 style="margin-top:16px">Tools</h3>'
+                inner += '<div class="tools-grid">'
 
                 var x402ToolNames = {}
 
@@ -591,145 +628,142 @@
 
                     var cls = isX402 ? 'tool-item x402-tool' : 'tool-item'
 
-                    html += '<div class="' + cls + '">'
-                    html += '<div class="tool-name">' + escapeHtml( toolName )
+                    inner += '<div class="' + cls + '">'
+                    inner += '<div class="tool-name">' + escapeHtml( toolName )
 
-                    if( isX402 ) { html += ' <span class="badge badge-green">x402</span>' }
-                    if( isUI ) { html += ' <span class="badge badge-purple">UI</span>' }
+                    if( isX402 ) { inner += ' <span class="badge badge-green">x402</span>' }
+                    if( isUI ) { inner += ' <span class="badge badge-purple">UI</span>' }
 
-                    html += '</div>'
-                    html += '<div class="tool-desc">' + escapeHtml( ( tool.description || '' ).substring( 0, 120 ) ) + '</div>'
-                    html += '</div>'
+                    inner += '</div>'
+                    inner += '<div class="tool-desc">' + escapeHtml( ( tool.description || '' ).substring( 0, 120 ) ) + '</div>'
+                    inner += '</div>'
                 } )
 
-                html += '</div>'
+                inner += '</div>'
             }
 
-            html += '</div>'
-
-            return html
+            return wrapCollapsible( 'MCP Server', inner, true )
         }
 
         // ── A2A Detail ──
 
         function renderA2aDetail( a2a, cats ) {
-            var html = '<div class="detail-section"><h3>A2A Agent</h3>'
-            html += '<div class="probe-summary">'
-            html += '<div class="field"><span class="label">Agent Name:</span> <span>' + escapeHtml( a2a.agentName || '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( a2a.agentDescription || '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">Version:</span> <span>' + escapeHtml( a2a.agentVersion || '-' ) + '</span></div>'
+            var inner = '<div class="probe-summary">'
+            inner += '<div class="field"><span class="label">Agent Name:</span> <span>' + escapeHtml( a2a.agentName || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Description:</span> <span>' + escapeHtml( a2a.agentDescription || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Version:</span> <span>' + escapeHtml( a2a.agentVersion || '-' ) + '</span></div>'
 
             if( a2a.provider && ( a2a.provider.organization || a2a.provider.url ) ) {
                 var providerText = a2a.provider.organization || '-'
 
-                html += '<div class="field"><span class="label">Provider:</span> <span>'
+                inner += '<div class="field"><span class="label">Provider:</span> <span>'
 
                 if( a2a.provider.url ) {
-                    html += '<a href="' + escapeHtml( a2a.provider.url ) + '" target="_blank" rel="noopener">' + escapeHtml( providerText ) + '</a>'
+                    inner += '<a href="' + escapeHtml( a2a.provider.url ) + '" target="_blank" rel="noopener">' + escapeHtml( providerText ) + '</a>'
                 } else {
-                    html += escapeHtml( providerText )
+                    inner += escapeHtml( providerText )
                 }
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
-            html += '<div class="field"><span class="label">Skills:</span> <span>' + ( a2a.skillCount || 0 ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Skills:</span> <span>' + ( a2a.skillCount || 0 ) + '</span></div>'
 
             if( a2a.skills && a2a.skills.length > 0 ) {
-                html += '<div class="field"><span class="label">Skill List:</span> <span>'
+                inner += '<div class="field"><span class="label">Skill List:</span> <span>'
 
                 a2a.skills.forEach( function( skill ) {
-                    html += '<span class="badge badge-blue">' + escapeHtml( skill.name || skill.id || '-' ) + '</span> '
+                    inner += '<span class="badge badge-blue">' + escapeHtml( skill.name || skill.id || '-' ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             if( a2a.protocolVersion ) {
-                html += '<div class="field"><span class="label">Protocol Version:</span> <span>' + escapeHtml( a2a.protocolVersion ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Protocol Version:</span> <span>' + escapeHtml( a2a.protocolVersion ) + '</span></div>'
             }
 
             if( a2a.protocolBindings && a2a.protocolBindings.length > 0 ) {
-                html += '<div class="field"><span class="label">Protocol Bindings:</span> <span>'
+                inner += '<div class="field"><span class="label">Protocol Bindings:</span> <span>'
 
                 a2a.protocolBindings.forEach( function( binding ) {
-                    html += '<span class="badge badge-blue">' + escapeHtml( typeof binding === 'string' ? binding : JSON.stringify( binding ) ) + '</span> '
+                    inner += '<span class="badge badge-blue">' + escapeHtml( typeof binding === 'string' ? binding : JSON.stringify( binding ) ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             // AP2
             if( a2a.ap2Version || cats.supportsA2aAp2 ) {
-                html += '<div class="field"><span class="label">AP2:</span> <span>'
-                html += '<span class="badge badge-green">Detected</span> '
+                inner += '<div class="field"><span class="label">AP2:</span> <span>'
+                inner += '<span class="badge badge-green">Detected</span> '
 
                 if( a2a.ap2Version ) {
-                    html += '<span class="badge badge-blue">v' + escapeHtml( a2a.ap2Version ) + '</span>'
+                    inner += '<span class="badge badge-blue">v' + escapeHtml( a2a.ap2Version ) + '</span>'
                 }
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             // AP2 Roles
             if( a2a.ap2Roles && a2a.ap2Roles.length > 0 ) {
-                html += '<div class="field"><span class="label">AP2 Roles:</span> <span>'
+                inner += '<div class="field"><span class="label">AP2 Roles:</span> <span>'
 
                 a2a.ap2Roles.forEach( function( role ) {
-                    html += '<span class="badge badge-blue">' + escapeHtml( role ) + '</span> '
+                    inner += '<span class="badge badge-blue">' + escapeHtml( role ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             // x402 A2A Extension
             if( a2a.x402Version || cats.supportsA2aX402 ) {
-                html += '<div class="field"><span class="label">x402 (A2A):</span> <span>'
-                html += '<span class="badge badge-green">Detected</span> '
+                inner += '<div class="field"><span class="label">x402 (A2A):</span> <span>'
+                inner += '<span class="badge badge-green">Detected</span> '
 
                 if( a2a.x402Version ) {
-                    html += '<span class="badge badge-blue">v' + escapeHtml( a2a.x402Version ) + '</span>'
+                    inner += '<span class="badge badge-blue">v' + escapeHtml( a2a.x402Version ) + '</span>'
                 }
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             // Embedded Flow (AP2 + x402)
             if( cats.supportsA2aEmbeddedFlow ) {
-                html += '<div class="field"><span class="label">Embedded Flow:</span> <span>'
-                html += '<span class="badge badge-green">AP2 + x402</span>'
-                html += '</span></div>'
+                inner += '<div class="field"><span class="label">Embedded Flow:</span> <span>'
+                inner += '<span class="badge badge-green">AP2 + x402</span>'
+                inner += '</span></div>'
             }
 
             // ERC-8004 Service Link
             if( a2a.erc8004ServiceUrl || cats.hasA2aErc8004ServiceLink ) {
-                html += '<div class="field"><span class="label">ERC-8004 Service:</span> <span>'
+                inner += '<div class="field"><span class="label">ERC-8004 Service:</span> <span>'
 
                 if( a2a.erc8004ServiceUrl ) {
-                    html += '<a href="' + escapeHtml( a2a.erc8004ServiceUrl ) + '" target="_blank" rel="noopener">' + escapeHtml( a2a.erc8004ServiceUrl ) + '</a>'
+                    inner += '<a href="' + escapeHtml( a2a.erc8004ServiceUrl ) + '" target="_blank" rel="noopener">' + escapeHtml( a2a.erc8004ServiceUrl ) + '</a>'
                 } else {
-                    html += '<span class="badge badge-green">Linked</span>'
+                    inner += '<span class="badge badge-green">Linked</span>'
                 }
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             // Extensions
             if( a2a.extensions && typeof a2a.extensions === 'object' && Object.keys( a2a.extensions ).length > 0 ) {
-                html += '<div class="field"><span class="label">Extensions:</span> <span>'
+                inner += '<div class="field"><span class="label">Extensions:</span> <span>'
 
                 Object.keys( a2a.extensions ).forEach( function( key ) {
-                    html += '<span class="badge badge-purple">' + escapeHtml( key ) + '</span> '
+                    inner += '<span class="badge badge-purple">' + escapeHtml( key ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
-            html += '</div>'
+            inner += '</div>'
 
             // A2A Categories
-            html += '<h3 style="margin-top:16px">Categories</h3>'
-            html += renderCategoryGrid( {
+            inner += '<h3 style="margin-top:16px">Categories</h3>'
+            inner += renderCategoryGrid( {
                 'hasAgentCard': cats.hasA2aCard,
                 'hasValidStructure': cats.hasA2aValidStructure,
                 'hasSkills': cats.hasA2aSkills,
@@ -747,43 +781,40 @@
                 'hasErc8004ServiceLink': cats.hasA2aErc8004ServiceLink
             } )
 
-            html += '</div>'
-
-            return html
+            return wrapCollapsible( 'A2A Agent', inner, true )
         }
 
         // ── x402 Detail ──
 
         function renderX402Detail( x402, cats ) {
-            var html = '<div class="detail-section"><h3>x402 Payment Support</h3>'
-            html += '<div class="probe-summary">'
+            var inner = '<div class="probe-summary">'
 
             if( x402.version !== null && x402.version !== undefined ) {
-                html += '<div class="field"><span class="label">x402 Version:</span> <span>v' + x402.version + '</span></div>'
+                inner += '<div class="field"><span class="label">x402 Version:</span> <span>v' + x402.version + '</span></div>'
             }
 
             var networks = x402.networks || []
 
             if( networks.length > 0 ) {
-                html += '<div class="field"><span class="label">Networks:</span> <span>'
+                inner += '<div class="field"><span class="label">Networks:</span> <span>'
 
                 networks.forEach( function( n ) {
-                    html += '<span class="badge badge-green">' + escapeHtml( CHAIN_NAMES[ n ] || n ) + '</span> '
+                    inner += '<span class="badge badge-green">' + escapeHtml( CHAIN_NAMES[ n ] || n ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             var schemes = x402.schemes || []
 
             if( schemes.length > 0 ) {
-                html += '<div class="field"><span class="label">Schemes:</span> <span>'
+                inner += '<div class="field"><span class="label">Schemes:</span> <span>'
 
                 schemes.forEach( function( s ) {
-                    html += '<span class="badge badge-blue">' + escapeHtml( s ) + '</span> '
+                    inner += '<span class="badge badge-blue">' + escapeHtml( s ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             // Payment Options — grouped by unique payment option
@@ -791,8 +822,8 @@
             var perToolKeys = Object.keys( perTool )
 
             if( perToolKeys.length > 0 ) {
-                html += '</div>'
-                html += '<h3 style="margin-top:16px">Payment Options</h3>'
+                inner += '</div>'
+                inner += '<h3 style="margin-top:16px">Payment Options</h3>'
 
                 var optionGroups = {}
 
@@ -822,33 +853,33 @@
                     if( group.opt.payTo ) { details.push( 'Pay to: ' + group.opt.payTo.substring( 0, 10 ) + '...' + group.opt.payTo.slice( -6 ) ) }
                     if( group.opt.maxTimeoutSeconds ) { details.push( 'Timeout: ' + group.opt.maxTimeoutSeconds + 's' ) }
 
-                    html += '<div class="payment-option-group">'
-                    html += '<div class="payment-option-header">'
-                    html += '<span class="badge badge-green">' + escapeHtml( chainLabel( group.network ) ) + '</span>'
-                    html += '</div>'
-                    html += '<div class="payment-option-details">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
-                    html += '<div class="payment-option-tools">'
-                    html += '<span class="label">Tools (' + group.tools.length + '):</span> '
+                    inner += '<div class="payment-option-group">'
+                    inner += '<div class="payment-option-header">'
+                    inner += '<span class="badge badge-green">' + escapeHtml( chainLabel( group.network ) ) + '</span>'
+                    inner += '</div>'
+                    inner += '<div class="payment-option-details">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
+                    inner += '<div class="payment-option-tools">'
+                    inner += '<span class="label">Tools (' + group.tools.length + '):</span> '
 
-                    html += group.tools.map( function( t ) {
+                    inner += group.tools.map( function( t ) {
                         return '<span class="tool-tag">' + escapeHtml( t ) + '</span>'
                     } ).join( ' ' )
 
-                    html += '</div>'
-                    html += '</div>'
+                    inner += '</div>'
+                    inner += '</div>'
                 } )
             } else {
                 var paymentOptions = x402.paymentOptions || []
 
                 if( paymentOptions.length > 0 ) {
-                    html += '</div>'
-                    html += '<h3 style="margin-top:16px">Payment Requirements</h3>'
-                    html += '<div class="tools-grid">'
+                    inner += '</div>'
+                    inner += '<h3 style="margin-top:16px">Payment Requirements</h3>'
+                    inner += '<div class="tools-grid">'
 
                     paymentOptions.forEach( function( pr ) {
-                        html += '<div class="tool-item x402-tool">'
+                        inner += '<div class="tool-item x402-tool">'
 
-                        if( pr.network ) { html += '<div class="tool-name">' + escapeHtml( chainLabel( pr.network ) ) + '</div>' }
+                        if( pr.network ) { inner += '<div class="tool-name">' + escapeHtml( chainLabel( pr.network ) ) + '</div>' }
 
                         var details = []
 
@@ -858,21 +889,21 @@
                         if( pr.payTo ) { details.push( 'Pay to: ' + pr.payTo.substring( 0, 10 ) + '...' + pr.payTo.slice( -6 ) ) }
 
                         if( details.length > 0 ) {
-                            html += '<div class="tool-desc">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
+                            inner += '<div class="tool-desc">' + escapeHtml( details.join( ' · ' ) ) + '</div>'
                         }
 
-                        html += '</div>'
+                        inner += '</div>'
                     } )
 
-                    html += '</div>'
+                    inner += '</div>'
                 } else {
-                    html += '</div>'
+                    inner += '</div>'
                 }
             }
 
             // x402 Categories
-            html += '<h3 style="margin-top:16px">Categories</h3>'
-            html += renderCategoryGrid( {
+            inner += '<h3 style="margin-top:16px">Categories</h3>'
+            inner += renderCategoryGrid( {
                 'supportsX402': cats.supportsX402,
                 'hasValidPaymentRequirements': cats.hasValidPaymentRequirements,
                 'supportsExactScheme': cats.supportsExactScheme,
@@ -880,59 +911,56 @@
                 'supportsSolana': cats.supportsSolana
             } )
 
-            html += '</div>'
-
-            return html
+            return wrapCollapsible( 'x402 Payment Support', inner, true )
         }
 
         // ── OAuth Detail ──
 
         function renderOAuthDetail( oauth, cats ) {
-            var html = '<div class="detail-section"><h3>OAuth / Authorization</h3>'
-            html += '<div class="probe-summary">'
-            html += '<div class="field"><span class="label">Issuer:</span> <span>' + escapeHtml( oauth.issuer || '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">Authorization Endpoint:</span> <span>' + escapeHtml( oauth.authorizationEndpoint || '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">Token Endpoint:</span> <span>' + escapeHtml( oauth.tokenEndpoint || '-' ) + '</span></div>'
+            var inner = '<div class="probe-summary">'
+            inner += '<div class="field"><span class="label">Issuer:</span> <span>' + escapeHtml( oauth.issuer || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Authorization Endpoint:</span> <span>' + escapeHtml( oauth.authorizationEndpoint || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Token Endpoint:</span> <span>' + escapeHtml( oauth.tokenEndpoint || '-' ) + '</span></div>'
 
             if( oauth.registrationEndpoint ) {
-                html += '<div class="field"><span class="label">Registration Endpoint:</span> <span>' + escapeHtml( oauth.registrationEndpoint ) + '</span></div>'
+                inner += '<div class="field"><span class="label">Registration Endpoint:</span> <span>' + escapeHtml( oauth.registrationEndpoint ) + '</span></div>'
             }
 
             if( oauth.grantTypesSupported && oauth.grantTypesSupported.length > 0 ) {
-                html += '<div class="field"><span class="label">Grant Types:</span> <span>'
+                inner += '<div class="field"><span class="label">Grant Types:</span> <span>'
 
                 oauth.grantTypesSupported.forEach( function( gt ) {
-                    html += '<span class="badge badge-blue">' + escapeHtml( gt ) + '</span> '
+                    inner += '<span class="badge badge-blue">' + escapeHtml( gt ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             if( oauth.pkceMethodsSupported && oauth.pkceMethodsSupported.length > 0 ) {
-                html += '<div class="field"><span class="label">PKCE Methods:</span> <span>'
+                inner += '<div class="field"><span class="label">PKCE Methods:</span> <span>'
 
                 oauth.pkceMethodsSupported.forEach( function( m ) {
-                    html += '<span class="badge badge-green">' + escapeHtml( m ) + '</span> '
+                    inner += '<span class="badge badge-green">' + escapeHtml( m ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             if( oauth.scopesSupported && oauth.scopesSupported.length > 0 ) {
-                html += '<div class="field"><span class="label">Scopes:</span> <span>'
+                inner += '<div class="field"><span class="label">Scopes:</span> <span>'
 
                 oauth.scopesSupported.forEach( function( s ) {
-                    html += '<span class="badge badge-purple">' + escapeHtml( s ) + '</span> '
+                    inner += '<span class="badge badge-purple">' + escapeHtml( s ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
-            html += '</div>'
+            inner += '</div>'
 
             // OAuth Categories
-            html += '<h3 style="margin-top:16px">Categories</h3>'
-            html += renderCategoryGrid( {
+            inner += '<h3 style="margin-top:16px">Categories</h3>'
+            inner += renderCategoryGrid( {
                 'supportsOAuth': cats.supportsOAuth,
                 'hasProtectedResourceMetadata': cats.hasProtectedResourceMetadata,
                 'hasAuthServerMetadata': cats.hasAuthServerMetadata,
@@ -941,46 +969,43 @@
                 'hasValidOAuthConfig': cats.hasValidOAuthConfig
             } )
 
-            html += '</div>'
-
-            return html
+            return wrapCollapsible( 'OAuth / Authorization', inner, true )
         }
 
         // ── MCP Apps Detail ──
 
         function renderMcpAppsDetail( ui, cats ) {
-            var html = '<div class="detail-section"><h3>MCP Apps</h3>'
-            html += '<div class="probe-summary">'
-            html += '<div class="field"><span class="label">Extension Version:</span> <span>' + escapeHtml( ui.extensionVersion || '-' ) + '</span></div>'
-            html += '<div class="field"><span class="label">UI Resources:</span> <span>' + ( ui.uiResourceCount || 0 ) + '</span></div>'
-            html += '<div class="field"><span class="label">Linked Tools:</span> <span>' + ( ui.uiLinkedToolCount || 0 ) + '</span></div>'
-            html += '<div class="field"><span class="label">App-Only Tools:</span> <span>' + ( ui.appOnlyToolCount || 0 ) + '</span></div>'
+            var inner = '<div class="probe-summary">'
+            inner += '<div class="field"><span class="label">Extension Version:</span> <span>' + escapeHtml( ui.extensionVersion || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">UI Resources:</span> <span>' + ( ui.uiResourceCount || 0 ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Linked Tools:</span> <span>' + ( ui.uiLinkedToolCount || 0 ) + '</span></div>'
+            inner += '<div class="field"><span class="label">App-Only Tools:</span> <span>' + ( ui.appOnlyToolCount || 0 ) + '</span></div>'
 
             if( ui.displayModes && ui.displayModes.length > 0 ) {
-                html += '<div class="field"><span class="label">Display Modes:</span> <span>'
+                inner += '<div class="field"><span class="label">Display Modes:</span> <span>'
 
                 ui.displayModes.forEach( function( mode ) {
-                    html += '<span class="badge badge-purple">' + escapeHtml( mode ) + '</span> '
+                    inner += '<span class="badge badge-purple">' + escapeHtml( mode ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
             if( ui.permissionsSummary && ui.permissionsSummary.length > 0 ) {
-                html += '<div class="field"><span class="label">Permissions:</span> <span>'
+                inner += '<div class="field"><span class="label">Permissions:</span> <span>'
 
                 ui.permissionsSummary.forEach( function( perm ) {
-                    html += '<span class="badge badge-blue">' + escapeHtml( perm ) + '</span> '
+                    inner += '<span class="badge badge-blue">' + escapeHtml( perm ) + '</span> '
                 } )
 
-                html += '</span></div>'
+                inner += '</span></div>'
             }
 
-            html += '</div>'
+            inner += '</div>'
 
             // UI Categories
-            html += '<h3 style="margin-top:16px">Categories</h3>'
-            html += renderCategoryGrid( {
+            inner += '<h3 style="margin-top:16px">Categories</h3>'
+            inner += renderCategoryGrid( {
                 'supportsMcpApps': cats.uiSupportsMcpApps,
                 'hasUiResources': cats.uiHasUiResources,
                 'hasToolLinkage': cats.uiHasToolLinkage,
@@ -991,12 +1016,12 @@
 
             // UI Resources list
             if( ui.uiResources && ui.uiResources.length > 0 ) {
-                html += '<h3 style="margin-top:16px">UI Resources</h3>'
-                html += '<div class="tools-grid">'
+                inner += '<h3 style="margin-top:16px">UI Resources</h3>'
+                inner += '<div class="tools-grid">'
 
                 ui.uiResources.forEach( function( res ) {
-                    html += '<div class="tool-item">'
-                    html += '<div class="tool-name">' + escapeHtml( res.uri || res.name || '-' ) + '</div>'
+                    inner += '<div class="tool-item">'
+                    inner += '<div class="tool-name">' + escapeHtml( res.uri || res.name || '-' ) + '</div>'
 
                     var parts = []
 
@@ -1005,97 +1030,170 @@
                     if( res.displayModes && res.displayModes.length > 0 ) { parts.push( res.displayModes.join( ', ' ) ) }
 
                     if( parts.length > 0 ) {
-                        html += '<div class="tool-desc">' + escapeHtml( parts.join( ' · ' ) ) + '</div>'
+                        inner += '<div class="tool-desc">' + escapeHtml( parts.join( ' · ' ) ) + '</div>'
                     }
 
-                    html += '</div>'
+                    inner += '</div>'
                 } )
 
-                html += '</div>'
+                inner += '</div>'
             }
 
             // Linked Tools list
             if( ui.uiLinkedTools && ui.uiLinkedTools.length > 0 ) {
-                html += '<h3 style="margin-top:16px">UI-Linked Tools</h3>'
-                html += '<div class="tools-grid">'
+                inner += '<h3 style="margin-top:16px">UI-Linked Tools</h3>'
+                inner += '<div class="tools-grid">'
 
                 ui.uiLinkedTools.forEach( function( tool ) {
-                    html += '<div class="tool-item">'
-                    html += '<div class="tool-name">' + escapeHtml( tool.name || '-' )
+                    inner += '<div class="tool-item">'
+                    inner += '<div class="tool-name">' + escapeHtml( tool.name || '-' )
 
                     if( tool.visibility ) {
-                        html += ' <span class="badge badge-purple">' + escapeHtml( Array.isArray( tool.visibility ) ? tool.visibility.join( ', ' ) : tool.visibility ) + '</span>'
+                        inner += ' <span class="badge badge-purple">' + escapeHtml( Array.isArray( tool.visibility ) ? tool.visibility.join( ', ' ) : tool.visibility ) + '</span>'
                     }
 
-                    html += '</div>'
+                    inner += '</div>'
 
                     if( tool.resourceUri ) {
-                        html += '<div class="tool-desc">' + escapeHtml( tool.resourceUri ) + '</div>'
+                        inner += '<div class="tool-desc">' + escapeHtml( tool.resourceUri ) + '</div>'
                     }
 
-                    html += '</div>'
+                    inner += '</div>'
                 } )
 
-                html += '</div>'
+                inner += '</div>'
             }
 
-            html += '</div>'
-
-            return html
+            return wrapCollapsible( 'MCP Apps', inner, true )
         }
 
         // ── Validation Messages ──
 
         function renderMessages( messages ) {
-            var html = '<div class="detail-section"><h3>Validation Messages</h3>'
+            var inner = ''
 
             var errors = messages.filter( function( m ) { return m.severity === 'ERROR' } )
             var warnings = messages.filter( function( m ) { return m.severity === 'WARNING' } )
             var infos = messages.filter( function( m ) { return m.severity === 'INFO' } )
 
             if( errors.length > 0 ) {
-                html += '<h4 style="margin-top:12px;color:#f04">Errors (' + errors.length + ')</h4>'
-                html += '<ul class="messages-list">'
+                inner += '<h4 style="margin-top:12px;color:#f04">Errors (' + errors.length + ')</h4>'
+                inner += '<ul class="messages-list">'
 
-                errors.forEach( function( m ) { html += '<li>' + escapeHtml( m.message ) + '</li>' } )
+                errors.forEach( function( m ) { inner += '<li>' + escapeHtml( m.message ) + '</li>' } )
 
-                html += '</ul>'
+                inner += '</ul>'
             }
 
             if( warnings.length > 0 ) {
-                html += '<h4 style="margin-top:12px;color:#fa0">Warnings (' + warnings.length + ')</h4>'
-                html += '<ul class="messages-list">'
+                inner += '<h4 style="margin-top:12px;color:#fa0">Warnings (' + warnings.length + ')</h4>'
+                inner += '<ul class="messages-list">'
 
-                warnings.forEach( function( m ) { html += '<li>' + escapeHtml( m.message ) + '</li>' } )
+                warnings.forEach( function( m ) { inner += '<li>' + escapeHtml( m.message ) + '</li>' } )
 
-                html += '</ul>'
+                inner += '</ul>'
             }
 
             if( infos.length > 0 ) {
-                html += '<h4 style="margin-top:12px;color:#888">Info (' + infos.length + ')</h4>'
-                html += '<ul class="messages-list">'
+                inner += '<h4 style="margin-top:12px;color:#888">Info (' + infos.length + ')</h4>'
+                inner += '<ul class="messages-list">'
 
-                infos.forEach( function( m ) { html += '<li>' + escapeHtml( m.message ) + '</li>' } )
+                infos.forEach( function( m ) { inner += '<li>' + escapeHtml( m.message ) + '</li>' } )
 
-                html += '</ul>'
+                inner += '</ul>'
             }
 
-            html += '</div>'
-
-            return html
+            return wrapCollapsible( 'Validation Messages', inner, false )
         }
 
+        // ── Smart Input Detection ──
+
+        function detectInputType( value ) {
+            var trimmed = value.trim()
+
+            if( !trimmed ) { return 'empty' }
+
+            if( trimmed.indexOf( '#' ) === 0 ) { return 'agent' }
+
+            if( /^\d+$/.test( trimmed ) ) { return 'agent' }
+
+            return 'url'
+        }
+
+        function getAgentId( value ) {
+            var trimmed = value.trim()
+
+            if( trimmed.indexOf( '#' ) === 0 ) { return trimmed.substring( 1 ) }
+
+            return trimmed
+        }
+
+        function updateInputMode() {
+            var input = document.getElementById( 'urlInput' )
+            var btn = document.getElementById( 'validateBtn' )
+            var chainSelector = document.getElementById( 'chainSelector' )
+            var hint = document.getElementById( 'inputHint' )
+            var type = detectInputType( input.value )
+
+            if( type === 'agent' ) {
+                btn.textContent = 'Lookup'
+                chainSelector.style.display = 'flex'
+                hint.textContent = 'Agent ID detected \u2014 will query ERC-8004 on-chain registry'
+            } else {
+                btn.textContent = 'Validate'
+                chainSelector.style.display = 'none'
+                hint.textContent = 'Accepts endpoint URLs or ERC-8004 agent IDs (numeric)'
+            }
+        }
+
+        // Restore last chain selection
+        var savedChain = localStorage.getItem( 'mcpValidator_chainId' )
+
+        if( savedChain ) {
+            var chainSelect = document.getElementById( 'chainSelect' )
+            var options = chainSelect.options
+
+            var i = 0
+
+            var found = false
+
+            // Using Array.from to iterate without for loop
+            Array.from( options ).forEach( function( opt ) {
+                if( opt.value === savedChain ) {
+                    chainSelect.value = savedChain
+                    found = true
+                }
+            } )
+        }
+
+        document.getElementById( 'chainSelect' ).addEventListener( 'change', function() {
+            localStorage.setItem( 'mcpValidator_chainId', this.value )
+        } )
+
         // ── Validate Action ──
+
+        async function handleSubmit() {
+            var input = document.getElementById( 'urlInput' )
+            var rawValue = input.value.trim()
+
+            if( !rawValue ) {
+                showError( 'Please enter a URL or agent ID.' )
+
+                return
+            }
+
+            var type = detectInputType( rawValue )
+
+            if( type === 'agent' ) {
+                await lookup()
+            } else {
+                await validate()
+            }
+        }
 
         async function validate() {
             var urlInput = document.getElementById( 'urlInput' )
             var rawUrl = urlInput.value.trim()
-
-            if( !rawUrl ) {
-                showError( 'Please enter a URL to validate.' )
-
-                return
-            }
 
             if( rawUrl.indexOf( '://' ) === -1 ) {
                 rawUrl = 'https://' + rawUrl
@@ -1138,17 +1236,111 @@
             }
         }
 
-        document.getElementById( 'validateBtn' ).addEventListener( 'click', validate )
+        function adaptLookupResponse( lookupData ) {
+            var r = lookupData.result || {}
+            var entries = r.entries || {}
+            var rep = r.reputation || {}
+
+            return {
+                status: lookupData.status,
+                categories: {
+                    isHttpReachable: null,
+                    supportsMcp: false,
+                    hasA2aCard: false,
+                    supportsX402: false,
+                    supportsOAuth: false,
+                    uiSupportsMcpApps: false,
+                    hasWellKnownRegistration: false,
+                    hasErc8004Registration: r.isOnChainVerified || false,
+                    isErc8004OnChainVerified: r.isOnChainVerified || false,
+                    isErc8004SpecCompliant: r.isSpecCompliant || false,
+                    hasOnChainReputation: rep.feedbackCount !== null && rep.feedbackCount !== undefined
+                },
+                entries: {
+                    http: null,
+                    mcp: null,
+                    a2a: null,
+                    ui: null,
+                    erc8004: {
+                        agentId: r.agentId,
+                        agentRegistry: '0x8004a169fb4a3325136eb29fa0ceb6d2e539a432',
+                        chainAlias: r.chainAlias,
+                        chainId: r.chainId,
+                        registrationName: entries.name || null,
+                        registrationDescription: entries.description || null,
+                        isOnChainVerified: r.isOnChainVerified || false,
+                        isSpecCompliant: r.isSpecCompliant || false,
+                        x402Support: r.x402Support,
+                        isActive: r.isActive,
+                        services: r.services
+                    },
+                    reputation: rep,
+                    assessment: null
+                },
+                messages: ( lookupData.messages || [] ).map( function( msg ) {
+                    var severity = 'INFO'
+
+                    if( msg.indexOf( 'LKP-0' ) === 0 ) { severity = 'WARNING' }
+                    if( msg.indexOf( 'LKP-01' ) === 0 || msg.indexOf( 'LKP-02' ) === 0 ) { severity = 'ERROR' }
+
+                    return { severity: severity, message: msg }
+                } )
+            }
+        }
+
+        async function lookup() {
+            var input = document.getElementById( 'urlInput' )
+            var agentId = getAgentId( input.value )
+            var chainId = Number( document.getElementById( 'chainSelect' ).value )
+
+            setValidatorState( 'loading' )
+            setLoadingText( 'Looking up agent #' + agentId + ' on-chain...' )
+
+            try {
+                var response = await fetch( '/api/lookup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify( { agentId: Number( agentId ), chainId: chainId } )
+                } )
+
+                var raw = await response.json()
+
+                if( raw.error ) {
+                    setValidatorState( 'idle' )
+                    showError( raw.error )
+
+                    return
+                }
+
+                var data = adaptLookupResponse( raw )
+
+                renderVerdicts( data )
+                renderDetails( data )
+                renderRawAssessment( raw, 'agent:#' + agentId + '@' + chainId )
+                setValidatorState( 'results' )
+            } catch( err ) {
+                setValidatorState( 'idle' )
+                showError( 'Server error: ' + ( err.message || 'Unknown' ) )
+            }
+        }
+
+        document.getElementById( 'validateBtn' ).addEventListener( 'click', handleSubmit )
 
         document.getElementById( 'urlInput' ).addEventListener( 'keydown', function( e ) {
-            if( e.key === 'Enter' ) { validate() }
+            if( e.key === 'Enter' ) { handleSubmit() }
         } )
+
+        document.getElementById( 'urlInput' ).addEventListener( 'input', updateInputMode )
 
         document.querySelectorAll( '.example-urls a' ).forEach( function( link ) {
             link.addEventListener( 'click', function( e ) {
                 e.preventDefault()
-                document.getElementById( 'urlInput' ).value = link.getAttribute( 'data-url' )
-                validate()
+                var input = document.getElementById( 'urlInput' )
+                var dataUrl = link.getAttribute( 'data-url' )
+
+                input.value = dataUrl
+                updateInputMode()
+                handleSubmit()
             } )
         } )
 
@@ -1193,37 +1385,27 @@
             try {
                 hostname = new URL( url ).hostname
             } catch( _e ) {
-                hostname = 'unknown'
+                hostname = url.replace( /[^a-zA-Z0-9\-_#]/g, '_' ) || 'unknown'
             }
 
             var timestamp = new Date().toISOString().replace( /[:.]/g, '-' ).slice( 0, 19 )
             var filename = 'assessment-' + hostname + '-' + timestamp + '.json'
 
-            var html = '<div class="raw-toggle" id="rawToggle">' +
-                '<span class="raw-arrow" id="rawArrow">&#9654;</span> Raw Assessment' +
+            var html = '<div class="detail-section">' +
+                '<div class="section-toggle" onclick="toggleSection(this)">' +
+                '<span class="section-arrow">\u25B6</span>' +
+                '<h3>Raw Assessment</h3>' +
                 '</div>' +
-                '<div class="raw-content" id="rawContent" style="display:none">' +
+                '<div class="section-content" style="display:none">' +
                 '<div class="raw-actions">' +
                 '<button class="raw-btn" id="rawCopyBtn">Copy</button>' +
                 '<button class="raw-btn" id="rawDownloadBtn">Download</button>' +
                 '</div>' +
                 '<pre><code>' + escapeHtml( jsonStr ) + '</code></pre>' +
+                '</div>' +
                 '</div>'
 
             container.innerHTML = html
-
-            document.getElementById( 'rawToggle' ).addEventListener( 'click', function() {
-                var content = document.getElementById( 'rawContent' )
-                var arrow = document.getElementById( 'rawArrow' )
-
-                if( content.style.display === 'none' ) {
-                    content.style.display = 'block'
-                    arrow.innerHTML = '&#9660;'
-                } else {
-                    content.style.display = 'none'
-                    arrow.innerHTML = '&#9654;'
-                }
-            } )
 
             document.getElementById( 'rawCopyBtn' ).addEventListener( 'click', function() {
                 var btn = this

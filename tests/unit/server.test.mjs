@@ -5,6 +5,7 @@ import { jest } from '@jest/globals'
 
 let requestHandler
 let McpAgentAssessment
+let AgentLookup
 let mockReadFileSync
 
 
@@ -182,8 +183,26 @@ beforeAll( async () => {
         McpAgentAssessment: { assess: jest.fn() }
     } ) )
 
+    jest.unstable_mockModule( '../../src/prober/AgentLookup.mjs', () => ( {
+        AgentLookup: { lookup: jest.fn() }
+    } ) )
+
+    jest.unstable_mockModule( '../../src/mcp/McpServer.mjs', () => ( {
+        McpServer: {
+            createHandler: jest.fn( () => ( {
+                handler: jest.fn( async ( _req, res ) => {
+                    res.writeHead( 200, { 'Content-Type': 'application/json' } )
+                    res.end( JSON.stringify( { jsonrpc: '2.0' } ) )
+                } )
+            } ) )
+        }
+    } ) )
+
     const assessmentMod = await import( 'mcp-agent-assessment' )
     McpAgentAssessment = assessmentMod.McpAgentAssessment
+
+    const agentLookupMod = await import( '../../src/prober/AgentLookup.mjs' )
+    AgentLookup = agentLookupMod.AgentLookup
 
     await import( '../../src/server/Server.mjs' )
 } )
@@ -196,6 +215,7 @@ afterAll( () => {
 
 beforeEach( () => {
     McpAgentAssessment.assess.mockReset()
+    AgentLookup.lookup.mockReset()
     delete process.env.API_TOKEN
 } )
 
@@ -287,7 +307,8 @@ describe( 'Server', () => {
             expect( response.statusCode ).toBe( 204 )
             expect( response.headers[ 'Access-Control-Allow-Origin' ] ).toBe( '*' )
             expect( response.headers[ 'Access-Control-Allow-Methods' ] ).toContain( 'POST' )
-            expect( response.headers[ 'Access-Control-Allow-Headers' ] ).toBe( 'Content-Type, Authorization' )
+            expect( response.headers[ 'Access-Control-Allow-Headers' ] ).toContain( 'Content-Type' )
+            expect( response.headers[ 'Access-Control-Allow-Headers' ] ).toContain( 'Authorization' )
             expect( response.headers[ 'Access-Control-Max-Age' ] ).toBe( '86400' )
         } )
     } )
@@ -578,6 +599,182 @@ describe( 'Server', () => {
             expect( data.entries.ui.permissionsSummary ).toEqual( [ 'clipboard-read', 'geolocation' ] )
             expect( data.layers.ui.messages ).toHaveLength( 1 )
             expect( data.layers.ui.messages[ 0 ] ).toBe( 'UI-001 ui: Found 2 UI resources' )
+        } )
+    } )
+
+
+    describe( 'POST /api/lookup', () => {
+        const MOCK_LOOKUP_RESULT = {
+            status: true,
+            result: {
+                agentId: 1,
+                chainId: 84532,
+                chainAlias: 'BASE_SEPOLIA_TESTNET',
+                owner: '0x1234567890abcdef1234567890abcdef12345678',
+                agentUri: 'data:application/json;base64,eyJ0ZXN0IjogdHJ1ZX0=',
+                isOnChainVerified: true,
+                isSpecCompliant: true,
+                x402Support: null,
+                isActive: true,
+                services: [],
+                supportedTrust: null,
+                reputation: { feedbackCount: 5, averageValue: 4.5, valueDecimals: 1, validationCount: 3, averageResponse: 200 },
+                categories: {},
+                entries: {}
+            },
+            messages: []
+        }
+
+
+        test( 'returns lookup result for valid agentId and chainId', async () => {
+            AgentLookup.lookup.mockResolvedValue( MOCK_LOOKUP_RESULT )
+
+            const request = createMockRequest( {
+                method: 'POST',
+                url: '/api/lookup',
+                body: { agentId: 1, chainId: 84532 }
+            } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 200 )
+
+            const data = JSON.parse( response.body )
+            expect( data.status ).toBe( true )
+            expect( data.result.agentId ).toBe( 1 )
+            expect( data.result.chainAlias ).toBe( 'BASE_SEPOLIA_TESTNET' )
+            expect( data.result.isOnChainVerified ).toBe( true )
+        } )
+
+
+        test( 'passes rpcNodes to lookup when provided', async () => {
+            AgentLookup.lookup.mockResolvedValue( MOCK_LOOKUP_RESULT )
+
+            const request = createMockRequest( {
+                method: 'POST',
+                url: '/api/lookup',
+                body: {
+                    agentId: 1,
+                    chainId: 84532,
+                    rpcNodes: { 'BASE_SEPOLIA_TESTNET': 'https://custom-rpc.example.com' }
+                }
+            } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 200 )
+            expect( AgentLookup.lookup ).toHaveBeenCalledWith( {
+                agentId: 1,
+                chainId: 84532,
+                rpcNodes: { 'BASE_SEPOLIA_TESTNET': 'https://custom-rpc.example.com' }
+            } )
+        } )
+
+
+        test( 'accepts string chainId (CAIP-2 format)', async () => {
+            AgentLookup.lookup.mockResolvedValue( MOCK_LOOKUP_RESULT )
+
+            const request = createMockRequest( {
+                method: 'POST',
+                url: '/api/lookup',
+                body: { agentId: 1, chainId: 'eip155:84532' }
+            } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 200 )
+            expect( AgentLookup.lookup ).toHaveBeenCalledWith( {
+                agentId: 1,
+                chainId: 'eip155:84532'
+            } )
+        } )
+
+
+        test( 'returns 400 for missing agentId', async () => {
+            const request = createMockRequest( {
+                method: 'POST',
+                url: '/api/lookup',
+                body: { chainId: 84532 }
+            } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 400 )
+
+            const data = JSON.parse( response.body )
+            expect( data.error ).toContain( 'agentId' )
+        } )
+
+
+        test( 'returns 400 for missing chainId', async () => {
+            const request = createMockRequest( {
+                method: 'POST',
+                url: '/api/lookup',
+                body: { agentId: 1 }
+            } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 400 )
+
+            const data = JSON.parse( response.body )
+            expect( data.error ).toContain( 'chainId' )
+        } )
+
+
+        test( 'returns 400 for negative agentId', async () => {
+            const request = createMockRequest( {
+                method: 'POST',
+                url: '/api/lookup',
+                body: { agentId: -1, chainId: 84532 }
+            } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 400 )
+
+            const data = JSON.parse( response.body )
+            expect( data.error ).toContain( 'positive integer' )
+        } )
+
+
+        test( 'returns 400 for non-integer agentId', async () => {
+            const request = createMockRequest( {
+                method: 'POST',
+                url: '/api/lookup',
+                body: { agentId: 1.5, chainId: 84532 }
+            } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 400 )
+
+            const data = JSON.parse( response.body )
+            expect( data.error ).toContain( 'positive integer' )
+        } )
+
+
+        test( 'returns 400 for boolean chainId', async () => {
+            const request = createMockRequest( {
+                method: 'POST',
+                url: '/api/lookup',
+                body: { agentId: 1, chainId: true }
+            } )
+            const response = createMockResponse()
+
+            await requestHandler( request, response )
+
+            expect( response.statusCode ).toBe( 400 )
+
+            const data = JSON.parse( response.body )
+            expect( data.error ).toContain( 'chainId' )
         } )
     } )
 

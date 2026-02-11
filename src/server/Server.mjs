@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url'
 
 import { McpAgentAssessment } from 'mcp-agent-assessment'
 
+import { AgentLookup } from '../prober/AgentLookup.mjs'
+import { McpServer } from '../mcp/McpServer.mjs'
 import { StaticFiles } from './StaticFiles.mjs'
 
 
@@ -16,10 +18,13 @@ const DOCS_PATH = join( __dirname, '..', '..', 'docs' )
 class Server {
     static #sessionToken = randomUUID()
     static #dependencyInfo = null
+    static #mcpHandler = null
 
 
     static start( { port = 3000 } = {} ) {
         Server.#loadDependencyInfo()
+        const { handler: mcpHandler } = McpServer.createHandler()
+        Server.#mcpHandler = mcpHandler
         const server = createServer( async ( request, response ) => {
             try {
                 await Server.#route( { request, response } )
@@ -75,8 +80,21 @@ class Server {
             return
         }
 
+        if( method === 'POST' && url === '/api/lookup' ) {
+            const { body } = await Server.#readBody( { request } )
+            await Server.#handleLookup( { body, response } )
+
+            return
+        }
+
         if( method === 'GET' && url === '/api/info' ) {
             Server.#sendJson( { response, statusCode: 200, data: Server.#dependencyInfo } )
+
+            return
+        }
+
+        if( url === '/mcp' ) {
+            await Server.#mcpHandler( request, response )
 
             return
         }
@@ -84,8 +102,8 @@ class Server {
         if( method === 'OPTIONS' ) {
             response.writeHead( 204, {
                 'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                'Access-Control-Allow-Methods': 'POST, GET, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id',
                 'Access-Control-Max-Age': '86400'
             } )
             response.end()
@@ -141,6 +159,54 @@ class Server {
         Server.#sendJson( { response, statusCode: 200, data: assessment } )
     }
 
+
+    static async #handleLookup( { body, response } ) {
+        const { agentId, chainId, rpcNodes } = body
+
+        const { error } = Server.#validateLookup( { agentId, chainId } )
+
+        if( error ) {
+            Server.#sendJson( { response, statusCode: 400, data: { error } } )
+
+            return
+        }
+
+        const lookupOptions = {
+            agentId: Number( agentId ),
+            chainId: typeof chainId === 'string' ? chainId : Number( chainId )
+        }
+
+        if( rpcNodes !== undefined && rpcNodes !== null && typeof rpcNodes === 'object' ) {
+            lookupOptions[ 'rpcNodes' ] = rpcNodes
+        }
+
+        const lookupResult = await AgentLookup.lookup( lookupOptions )
+
+        Server.#sendJson( { response, statusCode: 200, data: lookupResult } )
+    }
+
+
+    static #validateLookup( { agentId, chainId } ) {
+        if( agentId === undefined || agentId === null ) {
+            return { error: 'Missing required "agentId" parameter' }
+        }
+
+        const numericAgentId = Number( agentId )
+
+        if( !Number.isInteger( numericAgentId ) || numericAgentId <= 0 ) {
+            return { error: '"agentId" must be a positive integer' }
+        }
+
+        if( chainId === undefined || chainId === null ) {
+            return { error: 'Missing required "chainId" parameter' }
+        }
+
+        if( typeof chainId !== 'number' && typeof chainId !== 'string' ) {
+            return { error: '"chainId" must be a number or string' }
+        }
+
+        return { error: null }
+    }
 
 
     static #validateUrl( { url } ) {
