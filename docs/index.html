@@ -424,7 +424,7 @@
 
         // ── Verdict Cards ──
 
-        function renderVerdicts( data ) {
+        function renderVerdicts( data, mode ) {
             var grid = document.getElementById( 'verdictGrid' )
             var cats = data.categories
             var http = data.entries.http
@@ -436,63 +436,67 @@
             var assessment = data.entries.assessment
             var summary = data.summary || {}
 
-            var cards = [
-                {
-                    label: 'HTTP',
-                    pass: cats.isHttpReachable,
-                    detail: cats.isHttpReachable
-                        ? ( cats.isHttps ? 'HTTPS' : 'HTTP' ) + ' · ' + ( summary.httpStatusCode || ( http ? http.statusCode : '-' ) ) + ( http && http.responseTimeMs !== null ? ' · ' + http.responseTimeMs + 'ms' : '' )
-                        : 'Not reachable'
-                },
-                {
-                    label: 'MCP',
-                    pass: cats.supportsMcp,
-                    detail: cats.supportsMcp
-                        ? ( mcp.serverName || 'MCP Server' ) + ' (' + ( mcp.toolCount || 0 ) + ' tools)'
-                        : 'Not detected'
-                },
-                {
-                    label: 'A2A / AP2',
-                    pass: cats.hasA2aCard,
-                    detail: cats.hasA2aCard
-                        ? ( a2a ? ( a2a.agentName || 'A2A Agent' ) : 'A2A Agent' )
-                        : 'Not detected'
-                },
-                {
-                    label: 'x402',
-                    pass: cats.supportsX402,
-                    detail: cats.supportsX402
-                        ? buildX402Detail( x402 )
-                        : 'Not detected'
-                },
-                {
-                    label: 'OAuth',
-                    pass: cats.supportsOAuth,
-                    detail: cats.supportsOAuth
-                        ? ( oauth ? ( oauth.issuer || 'OAuth detected' ) : 'OAuth detected' )
-                        : 'Not required'
-                },
-                {
-                    label: 'MCP Apps',
-                    pass: cats.uiSupportsMcpApps,
-                    detail: cats.uiSupportsMcpApps
-                        ? ( ui ? ( ui.uiResourceCount + ' UI resource' + ( ui.uiResourceCount !== 1 ? 's' : '' ) ) : 'Detected' )
-                        : 'Not detected'
-                },
-                {
-                    label: 'ERC-8004',
-                    pass: cats.hasErc8004Registration || cats.hasWellKnownRegistration,
-                    detail: ( function() {
-                        if( !cats.hasErc8004Registration && !cats.hasWellKnownRegistration ) { return 'Not registered' }
-                        if( !cats.hasErc8004Registration ) { return 'Well-known found' }
-                        var parts = [ 'On-chain' ]
-                        if( cats.isErc8004OnChainVerified ) { parts.push( 'Verified' ) }
-                        var e = data.entries.erc8004
-                        if( e && e.chainAlias ) { parts.push( CHAIN_NAMES[ e.chainAlias ] || e.chainAlias ) }
-                        return parts.join( ' · ' )
-                    } )()
-                }
-            ]
+            var erc8004Card = {
+                label: 'ERC-8004',
+                pass: cats.hasErc8004Registration || cats.hasWellKnownRegistration,
+                detail: ( function() {
+                    if( !cats.hasErc8004Registration && !cats.hasWellKnownRegistration ) { return 'Not registered' }
+                    if( !cats.hasErc8004Registration ) { return 'Well-known found' }
+                    var parts = [ 'On-chain' ]
+                    if( cats.isErc8004OnChainVerified ) { parts.push( 'Verified' ) }
+                    var e = data.entries.erc8004
+                    if( e && e.chainAlias ) { parts.push( CHAIN_NAMES[ e.chainAlias ] || e.chainAlias ) }
+                    return parts.join( ' · ' )
+                } )()
+            }
+
+            var cards = mode === 'lookup'
+                ? [ erc8004Card ]
+                : [
+                    {
+                        label: 'HTTP',
+                        pass: cats.isHttpReachable,
+                        detail: cats.isHttpReachable
+                            ? ( cats.isHttps ? 'HTTPS' : 'HTTP' ) + ' · ' + ( summary.httpStatusCode || ( http ? http.statusCode : '-' ) ) + ( http && http.responseTimeMs !== null ? ' · ' + http.responseTimeMs + 'ms' : '' )
+                            : 'Not reachable'
+                    },
+                    {
+                        label: 'MCP',
+                        pass: cats.supportsMcp,
+                        detail: cats.supportsMcp
+                            ? ( mcp.serverName || 'MCP Server' ) + ' (' + ( mcp.toolCount || 0 ) + ' tools)'
+                            : 'Not detected'
+                    },
+                    {
+                        label: 'A2A / AP2',
+                        pass: cats.hasA2aCard,
+                        detail: cats.hasA2aCard
+                            ? ( a2a ? ( a2a.agentName || 'A2A Agent' ) : 'A2A Agent' )
+                            : 'Not detected'
+                    },
+                    {
+                        label: 'x402',
+                        pass: cats.supportsX402,
+                        detail: cats.supportsX402
+                            ? buildX402Detail( x402 )
+                            : 'Not detected'
+                    },
+                    {
+                        label: 'OAuth',
+                        pass: cats.supportsOAuth,
+                        detail: cats.supportsOAuth
+                            ? ( oauth ? ( oauth.issuer || 'OAuth detected' ) : 'OAuth detected' )
+                            : 'Not required'
+                    },
+                    {
+                        label: 'MCP Apps',
+                        pass: cats.uiSupportsMcpApps,
+                        detail: cats.uiSupportsMcpApps
+                            ? ( ui ? ( ui.uiResourceCount + ' UI resource' + ( ui.uiResourceCount !== 1 ? 's' : '' ) ) : 'Detected' )
+                            : 'Not detected'
+                    },
+                    erc8004Card
+                ]
 
             grid.innerHTML = cards.map( function( card ) {
                 var cls = card.pass ? 'pass' : 'fail'
@@ -1634,7 +1638,7 @@
 
                 var data = adaptLookupResponse( raw )
 
-                renderVerdicts( data )
+                renderVerdicts( data, 'lookup' )
                 renderDetails( data )
                 renderRawAssessment( raw, 'agent:#' + agentId + '@' + chainId )
                 setValidatorState( 'results' )
