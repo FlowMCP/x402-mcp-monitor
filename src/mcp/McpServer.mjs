@@ -61,12 +61,17 @@ class McpServer {
             },
             {
                 capabilities: {
-                    tools: {}
+                    tools: {},
+                    resources: {},
+                    experimental: {
+                        'io.modelcontextprotocol/ui': { version: '2025-06-18' }
+                    }
                 }
             }
         )
 
         McpServer.#registerTools( { server } )
+        McpServer.#registerResources( { server } )
 
         const transport = new StreamableHTTPServerTransport( {
             sessionIdGenerator: () => randomUUID()
@@ -77,12 +82,20 @@ class McpServer {
 
 
     static #registerTools( { server } ) {
-        server.tool(
+        server.registerTool(
             'validate_endpoint',
-            'Validate an MCP, A2A, x402, or OAuth endpoint. Returns a multi-layer assessment with protocol support, tools, resources, payment requirements, and a grade.',
             {
-                url: z.string().describe( 'The endpoint URL to validate (must be http:// or https://)' ),
-                timeout: z.number().optional().describe( 'Request timeout in milliseconds (default: 15000)' )
+                description: 'Validate an MCP, A2A, x402, or OAuth endpoint. Returns a multi-layer assessment with protocol support, tools, resources, payment requirements, and a grade.',
+                inputSchema: {
+                    url: z.string().describe( 'The endpoint URL to validate (must be http:// or https://)' ),
+                    timeout: z.number().optional().describe( 'Request timeout in milliseconds (default: 15000)' )
+                },
+                _meta: {
+                    ui: {
+                        resourceUri: 'ui://validator/assessment-report',
+                        visibility: [ 'model', 'app' ]
+                    }
+                }
             },
             async ( { url, timeout } ) => {
                 const assessOptions = { endpoint: url }
@@ -113,13 +126,21 @@ class McpServer {
         )
 
 
-        server.tool(
+        server.registerTool(
             'lookup_agent',
-            'Look up an ERC-8004 registered agent on-chain. Returns registration data, spec compliance, services, and reputation from the on-chain registry.',
             {
-                agentId: z.number().int().positive().describe( 'The agent token ID in the ERC-8004 registry' ),
-                chainId: z.union( [ z.number(), z.string() ] ).describe( 'Chain ID (number) or CAIP-2 identifier (e.g., "eip155:84532")' ),
-                rpcNodes: z.record( z.string(), z.string() ).optional().describe( 'Optional RPC node overrides by chain alias' )
+                description: 'Look up an ERC-8004 registered agent on-chain. Returns registration data, spec compliance, services, and reputation from the on-chain registry.',
+                inputSchema: {
+                    agentId: z.number().int().positive().describe( 'The agent token ID in the ERC-8004 registry' ),
+                    chainId: z.union( [ z.number(), z.string() ] ).describe( 'Chain ID (number) or CAIP-2 identifier (e.g., "eip155:84532")' ),
+                    rpcNodes: z.record( z.string(), z.string() ).optional().describe( 'Optional RPC node overrides by chain alias' )
+                },
+                _meta: {
+                    ui: {
+                        resourceUri: 'ui://validator/lookup-report',
+                        visibility: [ 'model', 'app' ]
+                    }
+                }
             },
             async ( { agentId, chainId, rpcNodes } ) => {
                 const lookupOptions = { agentId, chainId }
@@ -150,10 +171,12 @@ class McpServer {
         )
 
 
-        server.tool(
+        server.registerTool(
             'validate_client',
-            'Introspect the connected MCP client. Returns client name, version, and supported capabilities.',
-            {},
+            {
+                description: 'Introspect the connected MCP client. Returns client name, version, and supported capabilities.',
+                inputSchema: {}
+            },
             async ( _args, extra ) => {
                 const lowLevelServer = server.server
                 const clientInfo = lowLevelServer.getClientVersion() || { name: 'unknown', version: 'unknown' }
@@ -171,6 +194,80 @@ class McpServer {
                                 uri: 'client://info',
                                 mimeType: 'text/html',
                                 text: html
+                            }
+                        }
+                    ]
+                }
+            }
+        )
+    }
+
+
+    static #registerResources( { server } ) {
+        server.resource(
+            'Assessment Report',
+            'ui://validator/assessment-report',
+            {
+                description: 'Interactive multi-protocol assessment report with verdict grid, protocol details, and raw data export',
+                mimeType: 'text/html;profile=mcp-app'
+            },
+            async () => {
+                const { html } = McpServer.#buildUiResourceHtml( {
+                    title: 'Assessment Report',
+                    body: '<p style="color:#94a3b8">Run <code>validate_endpoint</code> to generate an assessment report.</p>'
+                } )
+
+                return {
+                    contents: [
+                        {
+                            uri: 'ui://validator/assessment-report',
+                            mimeType: 'text/html;profile=mcp-app',
+                            text: html,
+                            _meta: {
+                                ui: {
+                                    csp: {
+                                        connectDomains: [ 'self' ],
+                                        resourceDomains: [ 'self' ],
+                                        frameDomains: []
+                                    },
+                                    displayModes: [ 'inline', 'fullscreen' ]
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        )
+
+
+        server.resource(
+            'Lookup Report',
+            'ui://validator/lookup-report',
+            {
+                description: 'ERC-8004 agent lookup report with registration data, verification status, and reputation',
+                mimeType: 'text/html;profile=mcp-app'
+            },
+            async () => {
+                const { html } = McpServer.#buildUiResourceHtml( {
+                    title: 'Lookup Report',
+                    body: '<p style="color:#94a3b8">Run <code>lookup_agent</code> to generate a lookup report.</p>'
+                } )
+
+                return {
+                    contents: [
+                        {
+                            uri: 'ui://validator/lookup-report',
+                            mimeType: 'text/html;profile=mcp-app',
+                            text: html,
+                            _meta: {
+                                ui: {
+                                    csp: {
+                                        connectDomains: [ 'self' ],
+                                        resourceDomains: [ 'self' ],
+                                        frameDomains: []
+                                    },
+                                    displayModes: [ 'inline', 'fullscreen' ]
+                                }
                             }
                         }
                     ]
@@ -473,6 +570,24 @@ tr:nth-child(even){background:#1e293b88}
 <div class="card">
 <div class="label">Capabilities</div>
 ${capRows ? `<table style="margin-top:8px">${capRows}</table>` : '<div style="color:#6b7280;margin-top:8px">(none reported)</div>'}
+</div>
+</body></html>`
+
+        return { html }
+    }
+
+
+    static #buildUiResourceHtml( { title, body } ) {
+        const html = `<!DOCTYPE html>
+<html><head><style>
+body{font-family:system-ui,sans-serif;margin:0;padding:16px;background:#0f172a;color:#e2e8f0}
+.card{background:#1e293b;border-radius:8px;padding:16px;margin-bottom:12px}
+.label{color:#94a3b8;font-size:12px;text-transform:uppercase}
+code{background:#1e293b;padding:2px 6px;border-radius:4px;font-size:13px;color:#818cf8}
+</style></head><body>
+<div class="card" style="text-align:center">
+<div class="label">${title}</div>
+<div style="margin-top:12px">${body}</div>
 </div>
 </body></html>`
 

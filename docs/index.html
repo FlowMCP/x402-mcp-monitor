@@ -1,67 +1,231 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MCP Agent Validator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        mono: ['SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>MCP Agent Validator</h1>
-            <p class="subtitle">Multi-protocol endpoint assessment: MCP, A2A, x402, OAuth, MCP Apps, ERC-8004</p>
-        </header>
+<body class="bg-gray-950 text-gray-100 min-h-screen antialiased">
 
-        <div>
-            <div class="validator-input">
-                <input type="text" id="urlInput" placeholder="Enter endpoint URL or agent ID" spellcheck="false">
-                <button class="validator-btn" id="validateBtn">Validate</button>
-            </div>
-
-            <div class="chain-selector" id="chainSelector" style="display:none">
-                <label for="chainSelect">Chain:</label>
-                <select id="chainSelect">
-                    <option value="84532">Base Sepolia (84532)</option>
-                    <option value="11155111">Sepolia (11155111)</option>
-                    <option value="8453">Base (8453)</option>
-                    <option value="1">Ethereum (1)</option>
-                    <option value="10">Optimism (10)</option>
-                    <option value="137">Polygon (137)</option>
-                    <option value="42161">Arbitrum (42161)</option>
-                </select>
-            </div>
-
-            <div class="input-hint" id="inputHint">Accepts endpoint URLs or ERC-8004 agent IDs (numeric)</div>
-
-            <div class="example-urls">
-                <span>Try:</span>
-                <a data-url="https://x402.flowmcp.org/mcp/streamable">x402.flowmcp.org/mcp/streamable</a>
-                <a data-url="https://blackjack.nanobot.ai/mcp">blackjack.nanobot.ai/mcp</a>
-                <a data-url="#1" data-type="agent">Agent #1</a>
-            </div>
-
-            <div class="error-message" id="errorBox"></div>
-
-            <div class="loading-section" id="loadingSection">
-                <div class="loading-spinner"></div>
-                <div class="loading-text" id="loadingText">Probing endpoint...</div>
-            </div>
-
-            <div class="results-section" id="resultsSection">
-                <div class="verdict-grid" id="verdictGrid"></div>
-                <div id="detailSections"></div>
-            </div>
-
-            <div id="rawAssessmentSection" class="raw-assessment-section" style="display:none"></div>
+    <!-- Hero Section -->
+    <div class="relative isolate overflow-hidden">
+        <div aria-hidden="true" class="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
+            <div style="clip-path: polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)" class="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[72.1875rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"></div>
         </div>
 
-        <footer>
-            <a href="https://github.com/FlowMCP/mcp-agent-validator">mcp-agent-validator</a> &middot;
-            Server-side validation via Node.js probes
-            <div id="depInfo" class="dep-info"></div>
-        </footer>
+        <div class="mx-auto max-w-3xl px-6 pt-20 pb-12 lg:pt-28 lg:pb-20">
+            <!-- MCP Badge -->
+            <div class="flex justify-center mb-8">
+                <div class="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm ring-1 ring-white/10 hover:ring-white/20 transition-colors">
+                    <span class="inline-block size-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-gray-400">MCP Server at <code class="text-gray-300 font-mono">/mcp</code></span>
+                    <span class="text-gray-600">·</span>
+                    <span class="text-indigo-400">3 tools for AI agents</span>
+                </div>
+            </div>
+
+            <!-- Title -->
+            <h1 class="text-center text-5xl font-bold tracking-tight sm:text-6xl">
+                <span class="text-white">MCP Agent</span><br>
+                <span class="bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">Validator</span>
+            </h1>
+            <p class="mt-6 text-center text-lg text-gray-400 max-w-xl mx-auto">
+                Multi-protocol assessment for MCP servers, A2A agents, x402 payments, OAuth, and ERC-8004 registries
+            </p>
+
+            <!-- Tabs -->
+            <div class="mt-10 flex justify-center">
+                <nav class="inline-flex gap-1 p-1 rounded-xl bg-white/5 ring-1 ring-white/10" id="tabNav">
+                    <button id="tabValidate" class="tab-btn active" onclick="switchTab('validate')">
+                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-1.605.42-3.113 1.157-4.418" /></svg>
+                        Validate Endpoint
+                    </button>
+                    <button id="tabLookup" class="tab-btn" onclick="switchTab('lookup')">
+                        <svg class="size-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                        Lookup Agent
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Validate Panel -->
+            <div id="panelValidate" class="tab-panel mt-8">
+                <div class="flex gap-3">
+                    <input type="text" id="urlInput" placeholder="https://your-mcp-server.com/mcp" spellcheck="false"
+                           class="flex-1 rounded-xl bg-white/5 px-5 py-3.5 text-base text-white ring-1 ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-indigo-500 font-mono outline-none transition-shadow">
+                    <button id="validateBtn" onclick="validate()" class="rounded-xl bg-indigo-500 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+                        Validate
+                    </button>
+                </div>
+                <div class="mt-3 flex items-center gap-3 text-sm text-gray-500">
+                    <span>Try:</span>
+                    <a class="example-link cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-url="https://x402.flowmcp.org/mcp/streamable">x402.flowmcp.org</a>
+                    <span class="text-gray-700">·</span>
+                    <a class="example-link cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-url="https://blackjack.nanobot.ai/mcp">blackjack.nanobot.ai</a>
+                </div>
+            </div>
+
+            <!-- Lookup Panel -->
+            <div id="panelLookup" class="tab-panel mt-8 hidden">
+                <div class="flex gap-3">
+                    <input type="number" id="agentIdInput" placeholder="Agent ID (e.g. 1)" min="1"
+                           class="flex-1 rounded-xl bg-white/5 px-5 py-3.5 text-base text-white ring-1 ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-indigo-500 font-mono outline-none transition-shadow">
+                    <select id="chainSelect" class="rounded-xl bg-white/5 px-4 py-3.5 text-sm text-gray-300 ring-1 ring-white/10 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer transition-shadow appearance-none">
+                        <option value="84532">Base Sepolia</option>
+                        <option value="11155111">Sepolia</option>
+                        <option value="8453">Base</option>
+                        <option value="1">Ethereum</option>
+                        <option value="10">Optimism</option>
+                        <option value="137">Polygon</option>
+                        <option value="42161">Arbitrum</option>
+                    </select>
+                    <button id="lookupBtn" onclick="lookup()" class="rounded-xl bg-indigo-500 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
+                        Lookup
+                    </button>
+                </div>
+                <div class="mt-3 flex items-center gap-3 text-sm text-gray-500">
+                    <span>Try:</span>
+                    <a class="lookup-example cursor-pointer text-indigo-400/80 hover:text-indigo-300 transition-colors" data-id="1">Agent #1 on Base Sepolia</a>
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div id="errorBox" class="mt-6 rounded-xl bg-red-500/10 ring-1 ring-red-500/30 px-5 py-3.5 text-red-400 text-sm" style="display:none"></div>
+
+            <!-- Loading -->
+            <div id="loadingSection" class="mt-16 text-center" style="display:none">
+                <div class="loading-spinner inline-block"></div>
+                <p id="loadingText" class="mt-4 text-gray-400 text-sm">Probing endpoint...</p>
+            </div>
+        </div>
+
+        <div aria-hidden="true" class="absolute inset-x-0 top-[calc(100%-13rem)] -z-10 transform-gpu overflow-hidden blur-3xl sm:top-[calc(100%-30rem)]">
+            <div style="clip-path: polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)" class="relative left-[calc(50%+3rem)] aspect-[1155/678] w-[72.1875rem] -translate-x-1/2 bg-gradient-to-tr from-[#ff80b5] to-[#9089fc] opacity-15 sm:left-[calc(50%+36rem)] sm:w-[72.1875rem]"></div>
+        </div>
     </div>
+
+    <!-- Results Section -->
+    <div class="mx-auto max-w-4xl px-6">
+        <div id="resultsSection" class="results-section">
+            <div class="verdict-grid" id="verdictGrid"></div>
+            <div id="detailSections"></div>
+        </div>
+        <div id="rawAssessmentSection" class="raw-assessment-section" style="display:none"></div>
+    </div>
+
+    <!-- Features Section -->
+    <div id="featuresSection" class="mx-auto max-w-5xl px-6 py-24">
+        <div class="mx-auto max-w-2xl text-center">
+            <h2 class="text-base font-semibold text-indigo-400">Multi-Protocol Assessment</h2>
+            <p class="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Everything checked in one probe</p>
+            <p class="mt-4 text-gray-400">Seven protocol layers assessed simultaneously — from HTTP reachability to on-chain reputation</p>
+        </div>
+        <div class="mx-auto mt-16 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div class="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-8 hover:ring-white/20 transition-all">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="flex items-center justify-center size-10 rounded-lg bg-indigo-500/10 ring-1 ring-indigo-500/20">
+                        <svg class="size-5 text-indigo-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" /></svg>
+                    </div>
+                    <h3 class="text-base font-semibold text-white">Endpoint Validation</h3>
+                </div>
+                <p class="text-sm text-gray-400 leading-relaxed">Full server-side assessment of MCP, A2A/AP2, x402 payments, OAuth 2.1, MCP Apps, and ERC-8004 — all from a single URL.</p>
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <span class="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-400 ring-1 ring-white/10">MCP</span>
+                    <span class="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-400 ring-1 ring-white/10">A2A / AP2</span>
+                    <span class="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-400 ring-1 ring-white/10">x402</span>
+                    <span class="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-400 ring-1 ring-white/10">OAuth</span>
+                    <span class="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-400 ring-1 ring-white/10">MCP Apps</span>
+                </div>
+            </div>
+            <div class="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-8 hover:ring-white/20 transition-all">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="flex items-center justify-center size-10 rounded-lg bg-indigo-500/10 ring-1 ring-indigo-500/20">
+                        <svg class="size-5 text-indigo-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                    </div>
+                    <h3 class="text-base font-semibold text-white">Agent Lookup</h3>
+                </div>
+                <p class="text-sm text-gray-400 leading-relaxed">Query the ERC-8004 on-chain registry by agent ID. Returns registration data, service endpoints, verification status, and reputation.</p>
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <span class="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-400 ring-1 ring-white/10">ERC-8004</span>
+                    <span class="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-400 ring-1 ring-white/10">On-Chain</span>
+                    <span class="inline-flex items-center rounded-full bg-white/5 px-2.5 py-1 text-xs text-gray-400 ring-1 ring-white/10">Reputation</span>
+                </div>
+            </div>
+            <div class="rounded-2xl bg-white/[0.03] ring-1 ring-white/10 p-8 hover:ring-white/20 transition-all">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="flex items-center justify-center size-10 rounded-lg bg-emerald-500/10 ring-1 ring-emerald-500/20">
+                        <svg class="size-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.288 15.038a5.25 5.25 0 0 1 7.424 0M5.106 11.856c3.807-3.808 9.98-3.808 13.788 0M1.924 8.674c5.565-5.565 14.587-5.565 20.152 0M12.53 18.22l-.53.53-.53-.53a.75.75 0 0 1 1.06 0Z" /></svg>
+                    </div>
+                    <h3 class="text-base font-semibold text-white">MCP Server</h3>
+                </div>
+                <p class="text-sm text-gray-400 leading-relaxed">Connect AI agents directly via the built-in MCP server. Three tools available for programmatic validation, lookup, and client introspection.</p>
+                <div class="mt-6">
+                    <code class="block text-xs text-gray-500 font-mono bg-white/5 rounded-lg px-3 py-2 ring-1 ring-white/5">
+                        <span class="text-emerald-400">POST</span> /mcp<br>
+                        <span class="text-gray-600">├</span> validate_endpoint<br>
+                        <span class="text-gray-600">├</span> lookup_agent<br>
+                        <span class="text-gray-600">└</span> validate_client
+                    </code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5">
+        <div class="mx-auto max-w-5xl px-6 py-12">
+            <!-- Protocol Badges -->
+            <div class="flex flex-wrap justify-center gap-3 mb-8">
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-400 ring-1 ring-indigo-500/20">
+                    <span class="size-1.5 rounded-full bg-indigo-400"></span>MCP
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 px-3 py-1 text-xs font-medium text-purple-400 ring-1 ring-purple-500/20">
+                    <span class="size-1.5 rounded-full bg-purple-400"></span>A2A / AP2
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/20">
+                    <span class="size-1.5 rounded-full bg-emerald-400"></span>x402
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-400 ring-1 ring-amber-500/20">
+                    <span class="size-1.5 rounded-full bg-amber-400"></span>OAuth 2.1
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-400 ring-1 ring-cyan-500/20">
+                    <span class="size-1.5 rounded-full bg-cyan-400"></span>MCP Apps
+                </span>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-3 py-1 text-xs font-medium text-rose-400 ring-1 ring-rose-500/20">
+                    <span class="size-1.5 rounded-full bg-rose-400"></span>ERC-8004
+                </span>
+            </div>
+
+            <!-- Dependency Modules -->
+            <div id="depInfo" class="dep-info text-center mb-8"></div>
+
+            <!-- Divider -->
+            <div class="border-t border-white/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <a href="https://github.com/FlowMCP/mcp-agent-validator" target="_blank" rel="noopener" class="text-gray-500 hover:text-gray-300 transition-colors">
+                        <svg class="size-5" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2Z" clip-rule="evenodd" /></svg>
+                    </a>
+                    <span class="text-sm text-gray-500">Server-side multi-protocol assessment via Node.js probes</span>
+                </div>
+                <div class="text-xs text-gray-600">
+                    Built by <a href="https://github.com/FlowMCP" target="_blank" rel="noopener" class="text-gray-400 hover:text-indigo-400 transition-colors">FlowMCP</a>
+                </div>
+            </div>
+        </div>
+    </footer>
 
     <script>
         // ── Chain Name Mapping ──
@@ -78,7 +242,23 @@
             'eip155:421614': 'Arbitrum Sepolia',
             'eip155:11155420': 'Optimism Sepolia',
             'solana:mainnet': 'Solana',
-            'solana:devnet': 'Solana Devnet'
+            'solana:devnet': 'Solana Devnet',
+            'ETHEREUM_MAINNET': 'Ethereum',
+            'OPTIMISM_MAINNET': 'Optimism',
+            'BNB_MAINNET': 'BNB Smart Chain',
+            'GNOSIS_MAINNET': 'Gnosis',
+            'POLYGON_MAINNET': 'Polygon',
+            'MONAD_MAINNET': 'Monad',
+            'XLAYER_MAINNET': 'XLayer',
+            'BASE_MAINNET': 'Base',
+            'ARBITRUM_MAINNET': 'Arbitrum',
+            'CELO_MAINNET': 'Celo',
+            'AVALANCHE_MAINNET': 'Avalanche',
+            'LINEA_MAINNET': 'Linea',
+            'TAIKO_MAINNET': 'Taiko',
+            'SCROLL_MAINNET': 'Scroll',
+            'SEPOLIA_TESTNET': 'Sepolia',
+            'BASE_SEPOLIA_TESTNET': 'Base Sepolia'
         }
 
         function chainLabel( caip2 ) {
@@ -147,6 +327,27 @@
             return html
         }
 
+        // ── Tab Switching ──
+
+        function switchTab( tab ) {
+            var validateTab = document.getElementById( 'tabValidate' )
+            var lookupTab = document.getElementById( 'tabLookup' )
+            var validatePanel = document.getElementById( 'panelValidate' )
+            var lookupPanel = document.getElementById( 'panelLookup' )
+
+            if( tab === 'validate' ) {
+                validateTab.classList.add( 'active' )
+                lookupTab.classList.remove( 'active' )
+                validatePanel.classList.remove( 'hidden' )
+                lookupPanel.classList.add( 'hidden' )
+            } else {
+                validateTab.classList.remove( 'active' )
+                lookupTab.classList.add( 'active' )
+                validatePanel.classList.add( 'hidden' )
+                lookupPanel.classList.remove( 'hidden' )
+            }
+        }
+
         // ── State Management ──
 
         function setValidatorState( state ) {
@@ -154,20 +355,28 @@
             var results = document.getElementById( 'resultsSection' )
             var rawSection = document.getElementById( 'rawAssessmentSection' )
             var errorBox = document.getElementById( 'errorBox' )
-            var btn = document.getElementById( 'validateBtn' )
+            var features = document.getElementById( 'featuresSection' )
+            var validateBtn = document.getElementById( 'validateBtn' )
+            var lookupBtn = document.getElementById( 'lookupBtn' )
 
             hide( loading )
             hide( results )
             hide( rawSection )
             hide( errorBox )
-            btn.disabled = false
+            validateBtn.disabled = false
+            lookupBtn.disabled = false
 
             if( state === 'loading' ) {
                 show( loading )
-                btn.disabled = true
+                validateBtn.disabled = true
+                lookupBtn.disabled = true
+                features.style.display = 'none'
             } else if( state === 'results' ) {
                 show( results )
                 show( rawSection )
+                features.style.display = 'none'
+            } else {
+                features.style.display = ''
             }
         }
 
@@ -397,27 +606,6 @@
             return wrapCollapsible( 'HTTP / HTTPS', inner, false )
         }
 
-        // ── ERC-8004 Chain Names ──
-
-        var CHAIN_NAMES = {
-            'ETHEREUM_MAINNET': 'Ethereum',
-            'OPTIMISM_MAINNET': 'Optimism',
-            'BNB_MAINNET': 'BNB Smart Chain',
-            'GNOSIS_MAINNET': 'Gnosis',
-            'POLYGON_MAINNET': 'Polygon',
-            'MONAD_MAINNET': 'Monad',
-            'XLAYER_MAINNET': 'XLayer',
-            'BASE_MAINNET': 'Base',
-            'ARBITRUM_MAINNET': 'Arbitrum',
-            'CELO_MAINNET': 'Celo',
-            'AVALANCHE_MAINNET': 'Avalanche',
-            'LINEA_MAINNET': 'Linea',
-            'TAIKO_MAINNET': 'Taiko',
-            'SCROLL_MAINNET': 'Scroll',
-            'SEPOLIA_TESTNET': 'Sepolia',
-            'BASE_SEPOLIA_TESTNET': 'Base Sepolia'
-        }
-
         // ── ERC-8004 Detail ──
 
         function renderErc8004Detail( erc8004, reputation, cats ) {
@@ -542,7 +730,6 @@
 
             inner += '</div>'
 
-            // Core categories
             inner += '<h3 style="margin-top:16px">Core</h3>'
             inner += renderCategoryGrid( {
                 'isReachable': cats.isReachable,
@@ -552,7 +739,6 @@
                 'hasPrompts': cats.hasPrompts
             } )
 
-            // Extended capabilities
             inner += '<h3 style="margin-top:16px">Capabilities</h3>'
             inner += renderCategoryGrid( {
                 'supportsTasks': cats.supportsTasks,
@@ -591,7 +777,6 @@
                 inner += '</span></div>'
             }
 
-            // Tools list
             if( mcp.tools && mcp.tools.length > 0 ) {
                 inner += '<h3 style="margin-top:16px">Tools</h3>'
                 inner += '<div class="tools-grid">'
@@ -693,7 +878,6 @@
                 inner += '</span></div>'
             }
 
-            // AP2
             if( a2a.ap2Version || cats.supportsA2aAp2 ) {
                 inner += '<div class="field"><span class="label">AP2:</span> <span>'
                 inner += '<span class="badge badge-green">Detected</span> '
@@ -705,7 +889,6 @@
                 inner += '</span></div>'
             }
 
-            // AP2 Roles
             if( a2a.ap2Roles && a2a.ap2Roles.length > 0 ) {
                 inner += '<div class="field"><span class="label">AP2 Roles:</span> <span>'
 
@@ -716,7 +899,6 @@
                 inner += '</span></div>'
             }
 
-            // x402 A2A Extension
             if( a2a.x402Version || cats.supportsA2aX402 ) {
                 inner += '<div class="field"><span class="label">x402 (A2A):</span> <span>'
                 inner += '<span class="badge badge-green">Detected</span> '
@@ -728,14 +910,12 @@
                 inner += '</span></div>'
             }
 
-            // Embedded Flow (AP2 + x402)
             if( cats.supportsA2aEmbeddedFlow ) {
                 inner += '<div class="field"><span class="label">Embedded Flow:</span> <span>'
                 inner += '<span class="badge badge-green">AP2 + x402</span>'
                 inner += '</span></div>'
             }
 
-            // ERC-8004 Service Link
             if( a2a.erc8004ServiceUrl || cats.hasA2aErc8004ServiceLink ) {
                 inner += '<div class="field"><span class="label">ERC-8004 Service:</span> <span>'
 
@@ -748,7 +928,6 @@
                 inner += '</span></div>'
             }
 
-            // Extensions
             if( a2a.extensions && typeof a2a.extensions === 'object' && Object.keys( a2a.extensions ).length > 0 ) {
                 inner += '<div class="field"><span class="label">Extensions:</span> <span>'
 
@@ -761,7 +940,6 @@
 
             inner += '</div>'
 
-            // A2A Categories
             inner += '<h3 style="margin-top:16px">Categories</h3>'
             inner += renderCategoryGrid( {
                 'hasAgentCard': cats.hasA2aCard,
@@ -817,7 +995,6 @@
                 inner += '</span></div>'
             }
 
-            // Payment Options — grouped by unique payment option
             var perTool = x402.perTool || {}
             var perToolKeys = Object.keys( perTool )
 
@@ -901,7 +1078,6 @@
                 }
             }
 
-            // x402 Categories
             inner += '<h3 style="margin-top:16px">Categories</h3>'
             inner += renderCategoryGrid( {
                 'supportsX402': cats.supportsX402,
@@ -958,7 +1134,6 @@
 
             inner += '</div>'
 
-            // OAuth Categories
             inner += '<h3 style="margin-top:16px">Categories</h3>'
             inner += renderCategoryGrid( {
                 'supportsOAuth': cats.supportsOAuth,
@@ -1003,7 +1178,6 @@
 
             inner += '</div>'
 
-            // UI Categories
             inner += '<h3 style="margin-top:16px">Categories</h3>'
             inner += renderCategoryGrid( {
                 'supportsMcpApps': cats.uiSupportsMcpApps,
@@ -1014,7 +1188,6 @@
                 'supportsTheming': cats.uiSupportsTheming
             } )
 
-            // UI Resources list
             if( ui.uiResources && ui.uiResources.length > 0 ) {
                 inner += '<h3 style="margin-top:16px">UI Resources</h3>'
                 inner += '<div class="tools-grid">'
@@ -1039,7 +1212,6 @@
                 inner += '</div>'
             }
 
-            // Linked Tools list
             if( ui.uiLinkedTools && ui.uiLinkedTools.length > 0 ) {
                 inner += '<h3 style="margin-top:16px">UI-Linked Tools</h3>'
                 inner += '<div class="tools-grid">'
@@ -1106,94 +1278,17 @@
             return wrapCollapsible( 'Validation Messages', inner, false )
         }
 
-        // ── Smart Input Detection ──
-
-        function detectInputType( value ) {
-            var trimmed = value.trim()
-
-            if( !trimmed ) { return 'empty' }
-
-            if( trimmed.indexOf( '#' ) === 0 ) { return 'agent' }
-
-            if( /^\d+$/.test( trimmed ) ) { return 'agent' }
-
-            return 'url'
-        }
-
-        function getAgentId( value ) {
-            var trimmed = value.trim()
-
-            if( trimmed.indexOf( '#' ) === 0 ) { return trimmed.substring( 1 ) }
-
-            return trimmed
-        }
-
-        function updateInputMode() {
-            var input = document.getElementById( 'urlInput' )
-            var btn = document.getElementById( 'validateBtn' )
-            var chainSelector = document.getElementById( 'chainSelector' )
-            var hint = document.getElementById( 'inputHint' )
-            var type = detectInputType( input.value )
-
-            if( type === 'agent' ) {
-                btn.textContent = 'Lookup'
-                chainSelector.style.display = 'flex'
-                hint.textContent = 'Agent ID detected \u2014 will query ERC-8004 on-chain registry'
-            } else {
-                btn.textContent = 'Validate'
-                chainSelector.style.display = 'none'
-                hint.textContent = 'Accepts endpoint URLs or ERC-8004 agent IDs (numeric)'
-            }
-        }
-
-        // Restore last chain selection
-        var savedChain = localStorage.getItem( 'mcpValidator_chainId' )
-
-        if( savedChain ) {
-            var chainSelect = document.getElementById( 'chainSelect' )
-            var options = chainSelect.options
-
-            var i = 0
-
-            var found = false
-
-            // Using Array.from to iterate without for loop
-            Array.from( options ).forEach( function( opt ) {
-                if( opt.value === savedChain ) {
-                    chainSelect.value = savedChain
-                    found = true
-                }
-            } )
-        }
-
-        document.getElementById( 'chainSelect' ).addEventListener( 'change', function() {
-            localStorage.setItem( 'mcpValidator_chainId', this.value )
-        } )
-
         // ── Validate Action ──
-
-        async function handleSubmit() {
-            var input = document.getElementById( 'urlInput' )
-            var rawValue = input.value.trim()
-
-            if( !rawValue ) {
-                showError( 'Please enter a URL or agent ID.' )
-
-                return
-            }
-
-            var type = detectInputType( rawValue )
-
-            if( type === 'agent' ) {
-                await lookup()
-            } else {
-                await validate()
-            }
-        }
 
         async function validate() {
             var urlInput = document.getElementById( 'urlInput' )
             var rawUrl = urlInput.value.trim()
+
+            if( !rawUrl ) {
+                showError( 'Please enter an endpoint URL.' )
+
+                return
+            }
 
             if( rawUrl.indexOf( '://' ) === -1 ) {
                 rawUrl = 'https://' + rawUrl
@@ -1236,10 +1331,12 @@
             }
         }
 
+        // ── Adapt Lookup Response ──
+
         function adaptLookupResponse( lookupData ) {
             var r = lookupData.result || {}
             var entries = r.entries || {}
-            var rep = r.reputation || {}
+            var rep = r.reputation && r.reputation.feedbackCount !== null ? r.reputation : null
 
             return {
                 status: lookupData.status,
@@ -1254,7 +1351,7 @@
                     hasErc8004Registration: r.isOnChainVerified || false,
                     isErc8004OnChainVerified: r.isOnChainVerified || false,
                     isErc8004SpecCompliant: r.isSpecCompliant || false,
-                    hasOnChainReputation: rep.feedbackCount !== null && rep.feedbackCount !== undefined
+                    hasOnChainReputation: rep !== null
                 },
                 entries: {
                     http: null,
@@ -1288,9 +1385,18 @@
             }
         }
 
+        // ── Lookup Action ──
+
         async function lookup() {
-            var input = document.getElementById( 'urlInput' )
-            var agentId = getAgentId( input.value )
+            var input = document.getElementById( 'agentIdInput' )
+            var agentId = input.value.trim()
+
+            if( !agentId ) {
+                showError( 'Please enter an agent ID.' )
+
+                return
+            }
+
             var chainId = Number( document.getElementById( 'chainSelect' ).value )
 
             setValidatorState( 'loading' )
@@ -1324,24 +1430,52 @@
             }
         }
 
-        document.getElementById( 'validateBtn' ).addEventListener( 'click', handleSubmit )
+        // ── Event Listeners ──
 
         document.getElementById( 'urlInput' ).addEventListener( 'keydown', function( e ) {
-            if( e.key === 'Enter' ) { handleSubmit() }
+            if( e.key === 'Enter' ) { validate() }
         } )
 
-        document.getElementById( 'urlInput' ).addEventListener( 'input', updateInputMode )
+        document.getElementById( 'agentIdInput' ).addEventListener( 'keydown', function( e ) {
+            if( e.key === 'Enter' ) { lookup() }
+        } )
 
-        document.querySelectorAll( '.example-urls a' ).forEach( function( link ) {
+        document.querySelectorAll( '.example-link' ).forEach( function( link ) {
             link.addEventListener( 'click', function( e ) {
                 e.preventDefault()
                 var input = document.getElementById( 'urlInput' )
-                var dataUrl = link.getAttribute( 'data-url' )
 
-                input.value = dataUrl
-                updateInputMode()
-                handleSubmit()
+                input.value = link.getAttribute( 'data-url' )
+                validate()
             } )
+        } )
+
+        document.querySelectorAll( '.lookup-example' ).forEach( function( link ) {
+            link.addEventListener( 'click', function( e ) {
+                e.preventDefault()
+                var input = document.getElementById( 'agentIdInput' )
+
+                input.value = link.getAttribute( 'data-id' )
+                switchTab( 'lookup' )
+                lookup()
+            } )
+        } )
+
+        // Restore last chain selection
+        var savedChain = localStorage.getItem( 'mcpValidator_chainId' )
+
+        if( savedChain ) {
+            var chainSelect = document.getElementById( 'chainSelect' )
+
+            Array.from( chainSelect.options ).forEach( function( opt ) {
+                if( opt.value === savedChain ) {
+                    chainSelect.value = savedChain
+                }
+            } )
+        }
+
+        document.getElementById( 'chainSelect' ).addEventListener( 'change', function() {
+            localStorage.setItem( 'mcpValidator_chainId', this.value )
         } )
 
         // ── Dependency Footer ──

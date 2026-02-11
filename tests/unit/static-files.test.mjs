@@ -46,7 +46,7 @@ describe( 'StaticFiles', () => {
             expect( response.statusCode ).toBe( 200 )
             expect( response.headers[ 'Content-Type' ] ).toBe( 'text/css; charset=utf-8' )
             expect( response.body ).toBeDefined()
-            expect( response.body.toString() ).toContain( ':root' )
+            expect( response.body.toString() ).toContain( '.tab-btn' )
         } )
 
 

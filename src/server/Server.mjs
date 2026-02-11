@@ -93,6 +93,12 @@ class Server {
             return
         }
 
+        if( method === 'GET' && ( url === '/.well-known/agent.json' || url === '/.well-known/agent-card.json' ) ) {
+            Server.#sendJson( { response, statusCode: 200, data: Server.#getAgentCard( { request } ) } )
+
+            return
+        }
+
         if( url === '/mcp' ) {
             await Server.#mcpHandler( request, response )
 
@@ -312,6 +318,66 @@ class Server {
             'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         } )
         response.end( json )
+    }
+
+
+    static #getAgentCard( { request } ) {
+        const host = request.headers[ 'host' ] || 'localhost'
+        const protocol = request.headers[ 'x-forwarded-proto' ] || 'http'
+        const baseUrl = `${protocol}://${host}`
+
+        const agentCard = {
+            name: 'MCP Agent Validator',
+            description: 'Multi-protocol assessment engine for MCP servers, A2A agents, x402 payments, OAuth 2.1, MCP Apps, and ERC-8004 registries. Validates endpoints via server-side probes and provides detailed compatibility reports.',
+            version: '0.2.0',
+            documentation_url: 'https://github.com/FlowMCP/mcp-agent-validator',
+            provider: {
+                organization: 'FlowMCP',
+                url: 'https://github.com/FlowMCP'
+            },
+            supported_interfaces: [
+                {
+                    url: `${baseUrl}/mcp`,
+                    protocol_binding: 'JSONRPC',
+                    protocol_version: '0.3'
+                }
+            ],
+            capabilities: {
+                streaming: true,
+                push_notifications: false,
+                extensions: [
+                    {
+                        uri: 'https://github.com/google-agentic-commerce/AP2/v1.0',
+                        description: 'Supports Agent Payments Protocol discovery',
+                        required: false
+                    }
+                ]
+            },
+            default_input_modes: [ 'application/json' ],
+            default_output_modes: [ 'application/json', 'text/html' ],
+            skills: [
+                {
+                    id: 'validate-endpoint',
+                    name: 'Validate Endpoint',
+                    description: 'Full multi-layer assessment of an MCP, A2A, x402, OAuth, or MCP Apps endpoint.',
+                    tags: [ 'validation', 'mcp', 'a2a', 'x402', 'assessment' ]
+                },
+                {
+                    id: 'lookup-agent',
+                    name: 'Lookup Agent',
+                    description: 'Query the ERC-8004 on-chain registry by agent ID for registration, verification, and reputation data.',
+                    tags: [ 'erc8004', 'blockchain', 'registry', 'lookup' ]
+                },
+                {
+                    id: 'validate-client',
+                    name: 'Validate Client',
+                    description: 'Introspect the connected MCP client and report its name, version, and capabilities.',
+                    tags: [ 'mcp', 'client', 'introspection' ]
+                }
+            ]
+        }
+
+        return agentCard
     }
 
 
