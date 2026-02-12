@@ -5,8 +5,8 @@
     "main": "./src/server/Server.mjs",
     "type": "module",
     "scripts": {
-        "start:dev": "node src/server/Server.mjs",
-        "start:prod": "node src/server/Server.mjs",
+        "start:dev": "NODE_ENV=development node src/server/Server.mjs",
+        "start:prod": "NODE_ENV=production node src/server/Server.mjs",
         "test": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles",
         "test:coverage:src": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles --coverage --collectCoverageFrom='src/**/*.mjs'",
         "test:file": "NODE_OPTIONS='--experimental-vm-modules' npx jest --detectOpenHandles"

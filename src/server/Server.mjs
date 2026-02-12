@@ -22,11 +22,15 @@ class Server {
 
 
     static start( { port = 3000 } = {} ) {
+        const env = process.env.NODE_ENV || 'development'
         Server.#loadDependencyInfo()
         const { handler: mcpHandler } = McpServer.createHandler()
         Server.#mcpHandler = mcpHandler
         const server = createServer( async ( request, response ) => {
             try {
+                if( env === 'development' ) {
+                    console.log( `${request.method} ${request.url}` )
+                }
                 await Server.#route( { request, response } )
             } catch( err ) {
                 console.log( `Error: ${err.message}` )
@@ -35,7 +39,7 @@ class Server {
         } )
 
         server.listen( port, () => {
-            console.log( `MCP Agent Validator running on http://localhost:${port}` )
+            console.log( `MCP Agent Validator running on http://localhost:${port} [${env}]` )
         } )
 
         return { server }
@@ -100,6 +104,14 @@ class Server {
         }
 
         if( url === '/mcp' ) {
+            const accept = request.headers[ 'accept' ] || ''
+
+            if( method === 'GET' && accept.includes( 'text/html' ) ) {
+                Server.#sendMcpInfoPage( { request, response } )
+
+                return
+            }
+
             await Server.#mcpHandler( request, response )
 
             return
@@ -318,6 +330,61 @@ class Server {
             'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         } )
         response.end( json )
+    }
+
+
+    static #sendMcpInfoPage( { request, response } ) {
+        const host = request.headers[ 'host' ] || 'localhost'
+        const protocol = request.headers[ 'x-forwarded-proto' ] || 'http'
+        const baseUrl = `${protocol}://${host}`
+
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCP Server — MCP Agent Validator</title>
+<style>
+body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background: #030712; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.container { max-width: 480px; padding: 48px 32px; text-align: center; }
+.badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); border-radius: 20px; padding: 6px 14px; font-size: 13px; color: #a5b4fc; margin-bottom: 24px; }
+.badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; color: #fff; }
+.subtitle { font-size: 15px; color: #94a3b8; margin: 0 0 32px; line-height: 1.5; }
+.tools { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; text-align: left; margin-bottom: 24px; }
+.tools h3 { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px; }
+.tool { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; }
+.tool:last-child { border-bottom: none; }
+.tool-name { font-family: SFMono-Regular, Consolas, monospace; color: #818cf8; }
+.tool-desc { color: #6b7280; font-size: 12px; }
+.endpoint { font-family: SFMono-Regular, Consolas, monospace; font-size: 13px; color: #6b7280; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 10px 16px; margin-bottom: 24px; }
+.endpoint code { color: #a5b4fc; }
+a { color: #818cf8; text-decoration: none; font-size: 13px; }
+a:hover { color: #a5b4fc; text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="badge"><span class="dot"></span> MCP Streamable HTTP</div>
+<h1>MCP Agent Validator</h1>
+<p class="subtitle">Multi-protocol assessment engine for MCP, A2A/AP2, x402, OAuth, MCP Apps, ERC-8004, and OASF.</p>
+<div class="endpoint">POST <code>${baseUrl}/mcp</code></div>
+<div class="tools">
+<h3>Available Tools</h3>
+<div class="tool"><span class="tool-name">validate_endpoint</span><span class="tool-desc">Assess an endpoint</span></div>
+<div class="tool"><span class="tool-name">lookup_agent</span><span class="tool-desc">ERC-8004 registry</span></div>
+<div class="tool"><span class="tool-name">validate_client</span><span class="tool-desc">Client introspection</span></div>
+</div>
+<a href="/">Open Validator UI</a>
+</div>
+</body>
+</html>`
+
+        response.writeHead( 200, {
+            'Content-Type': 'text/html; charset=utf-8'
+        } )
+        response.end( html )
     }
 
 
