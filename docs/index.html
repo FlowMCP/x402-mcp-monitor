@@ -603,6 +603,10 @@
                 html += renderMcpAppsDetail( ui, cats )
             }
 
+            if( cats.isHttpReachable && http ) {
+                html += renderHtmlDetail( http, cats )
+            }
+
             if( erc8004 || cats.hasWellKnownRegistration || cats.hasErc8004Registration ) {
                 html += renderErc8004Detail( erc8004, reputation, cats )
             }
@@ -736,6 +740,49 @@
             }
 
             return html
+        }
+
+        // ── HTML Detail ──
+
+        function renderHtmlDetail( http, cats ) {
+            var inner = '<div class="probe-summary">'
+
+            inner += '<div class="field"><span class="label">Content-Type:</span> <span>' + escapeHtml( http.contentType || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Status Code:</span> <span>' + ( http.statusCode || '-' ) + '</span></div>'
+            inner += '<div class="field"><span class="label">Response Time:</span> <span>' + ( http.responseTimeMs !== null ? http.responseTimeMs + ' ms' : '-' ) + '</span></div>'
+
+            if( cats.isHttps ) {
+                inner += '<div class="field"><span class="label">HTTPS:</span> <span class="check-yes">&#10003;</span></div>'
+
+                if( cats.hasValidSsl ) {
+                    inner += '<div class="field"><span class="label">SSL:</span> <span>Valid</span></div>'
+                }
+
+                if( http.sslProtocol ) {
+                    inner += '<div class="field"><span class="label">TLS Version:</span> <span>' + escapeHtml( http.sslProtocol ) + '</span></div>'
+                }
+
+                if( http.sslIssuer ) {
+                    inner += '<div class="field"><span class="label">SSL Issuer:</span> <span>' + escapeHtml( http.sslIssuer ) + '</span></div>'
+                }
+
+                if( http.sslExpiresAt ) {
+                    inner += '<div class="field"><span class="label">SSL Expires:</span> <span>' + escapeHtml( http.sslExpiresAt ) + '</span></div>'
+                }
+            }
+
+            inner += '</div>'
+
+            inner += '<h3 style="margin-top:16px">Categories</h3>'
+            inner += renderCategoryGrid( {
+                'isWebsite': cats.isWebsite,
+                'isHttps': cats.isHttps,
+                'hasValidSsl': cats.hasValidSsl,
+                'supportsCors': cats.supportsCors,
+                'supportsHttp2': cats.supportsHttp2
+            } )
+
+            return wrapCollapsible( 'HTML / Website', inner, false )
         }
 
         // ── ERC-8004 Detail ──
