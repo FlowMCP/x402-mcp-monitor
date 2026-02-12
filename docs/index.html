@@ -535,6 +535,20 @@
                             ? ( ui ? ( ui.uiResourceCount + ' UI resource' + ( ui.uiResourceCount !== 1 ? 's' : '' ) ) : 'Detected' )
                             : 'Not detected'
                     },
+                    {
+                        label: 'HTML',
+                        pass: cats.isWebsite,
+                        detail: ( function() {
+                            if( !cats.isHttpReachable ) { return 'Not reachable' }
+                            if( !cats.isWebsite ) { return 'API only' }
+                            var parts = [ 'Website' ]
+                            if( cats.isHttps && cats.hasValidSsl ) { parts.push( 'SSL valid' ) }
+                            else if( cats.isHttps ) { parts.push( 'SSL' ) }
+                            if( cats.supportsCors ) { parts.push( 'CORS' ) }
+                            if( cats.supportsHttp2 ) { parts.push( 'HTTP/2' ) }
+                            return parts.join( ' · ' )
+                        } )()
+                    },
                     erc8004Card
                 ]
 
