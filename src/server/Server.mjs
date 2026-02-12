@@ -62,6 +62,12 @@ class Server {
             return
         }
 
+        if( method === 'GET' && url === '/og-image.png' ) {
+            await StaticFiles.serve( { basePath: DOCS_PATH, filePath: 'og-image.png', response } )
+
+            return
+        }
+
         if( method === 'POST' && url.startsWith( '/api/' ) ) {
             const { authenticated } = Server.#authenticate( { request, response } )
 
