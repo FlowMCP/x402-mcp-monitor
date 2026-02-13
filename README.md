@@ -4,16 +4,16 @@
 
 # AgentProbe (MCP Agent Validator)
 
-Web-based multi-protocol validator for AI agent endpoints. Enter a URL and get instant assessment across eight protocol layers — MCP, A2A/AP2, x402, OAuth 2.1, MCP Apps, ERC-8004, OASF, and on-chain reputation.
+Web-based multi-protocol validator for AI agent endpoints. Enter a URL and get instant assessment across eight protocol layers — HTTP, MCP, A2A/AP2, x402, OAuth, MCP Apps, HTML, and ERC-8004.
 
-**Live demo:** https://agentprobe.xyz  
-**Video:** TBD  
-**DoraHacks:** TBD
+**Live demo:** https://agentprobe.xyz
+**Video:** https://www.youtube.com/watch?v=gnmsCEly3fA
+**DoraHacks:** https://dorahacks.io/buidl/39293
 
 ## TL;DR
 
 - **Problem:** Agent endpoints are hard to validate across multiple evolving protocols.
-- **Solution:** One URL → unified assessment across MCP, A2A/AP2, x402, OAuth, MCP Apps, ERC-8004, OASF, and reputation.
+- **Solution:** One URL → unified assessment across HTTP, MCP, A2A/AP2, x402, OAuth, MCP Apps, HTML, and ERC-8004.
 - **Benefit:** Faster debugging, safer integrations, and clearer compliance signals.
 
 ## Demo
@@ -58,18 +58,22 @@ Open `http://localhost:4000` in your browser and enter an endpoint URL to valida
 flowchart LR
     A[URL Input] --> B[Server]
     B --> C[mcp-agent-assessment]
-    C --> D[MCP]
-    C --> E[A2A / AP2]
-    C --> F[x402]
-    C --> G[OAuth]
-    C --> H[MCP Apps]
-    C --> K[ERC-8004]
-    D --> I[Results]
-    E --> I
-    F --> I
-    G --> I
-    H --> I
-    K --> I
+    C --> HTTP[HTTP]
+    C --> MCP[MCP]
+    C --> A2A[A2A/AP2]
+    C --> X402[x402]
+    C --> OA[OAuth]
+    C --> APPS[MCP Apps]
+    C --> HTML[HTML]
+    C --> E8[ERC-8004]
+    HTTP --> I[Results]
+    MCP --> I
+    A2A --> I
+    X402 --> I
+    OA --> I
+    APPS --> I
+    HTML --> I
+    E8 --> I
 ```
 
 ## API
@@ -169,6 +173,10 @@ tests/
 - [x402-mcp-validator](https://github.com/FlowMCP/x402-mcp-validator) — x402 payment protocol validation
 - [mcp-apps-validator](https://github.com/FlowMCP/mcp-apps-validator) — MCP Apps UI resource detection
 - [erc8004-registry-parser](https://github.com/FlowMCP/erc8004-registry-parser) — ERC-8004 on-chain registry parsing
+
+## Built by
+
+[a6b8](https://github.com/a6b8)
 
 ## License
 
