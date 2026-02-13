@@ -37,7 +37,8 @@ class AgentLookup {
         'eip155:8453': 'BASE_MAINNET',
         'eip155:11155111': 'SEPOLIA_TESTNET',
         'eip155:84532': 'BASE_SEPOLIA_TESTNET',
-        'eip155:42161': 'ARBITRUM_MAINNET'
+        'eip155:42161': 'ARBITRUM_MAINNET',
+        'eip155:324705682': 'SKALE_BASE_SEPOLIA_TESTNET'
     }
 
 
@@ -46,7 +47,8 @@ class AgentLookup {
         'BASE_MAINNET': 'https://mainnet.base.org',
         'SEPOLIA_TESTNET': 'https://rpc.sepolia.org',
         'BASE_SEPOLIA_TESTNET': 'https://sepolia.base.org',
-        'ARBITRUM_MAINNET': 'https://arb1.arbitrum.io/rpc'
+        'ARBITRUM_MAINNET': 'https://arb1.arbitrum.io/rpc',
+        'SKALE_BASE_SEPOLIA_TESTNET': 'https://base-sepolia-testnet.skalenodes.com/v1/jubilant-horrible-ancha'
     }
 
 
