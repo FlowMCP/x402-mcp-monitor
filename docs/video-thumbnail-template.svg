@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#f472b6"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+
+  <rect x="80" y="80" width="1120" height="560" rx="28" fill="#0b1220" stroke="rgba(255,255,255,0.08)"/>
+
+  <rect x="120" y="120" width="1040" height="10" rx="5" fill="url(#accent)"/>
+
+  <text x="120" y="220" fill="#e5e7eb" font-size="56" font-family="Arial, Helvetica, sans-serif" font-weight="700">
+    AgentProbe
+  </text>
+  <text x="120" y="280" fill="#9ca3af" font-size="26" font-family="Arial, Helvetica, sans-serif">
+    Multi-Protocol Agent Validator
+  </text>
+
+  <g transform="translate(120,340)">
+    <rect width="520" height="220" rx="18" fill="#0f172a" stroke="rgba(255,255,255,0.08)"/>
+    <text x="28" y="52" fill="#9ca3af" font-size="18" font-family="Arial, Helvetica, sans-serif">Demo steps</text>
+    <text x="28" y="98" fill="#e5e7eb" font-size="22" font-family="Arial, Helvetica, sans-serif">1. Paste endpoint URL</text>
+    <text x="28" y="138" fill="#e5e7eb" font-size="22" font-family="Arial, Helvetica, sans-serif">2. Validate</text>
+    <text x="28" y="178" fill="#e5e7eb" font-size="22" font-family="Arial, Helvetica, sans-serif">3. Review verdicts</text>
+  </g>
+
+  <g transform="translate(700,340)">
+    <rect width="460" height="220" rx="18" fill="#0f172a" stroke="rgba(255,255,255,0.08)"/>
+    <text x="28" y="52" fill="#9ca3af" font-size="18" font-family="Arial, Helvetica, sans-serif">Protocol coverage</text>
+    <text x="28" y="98" fill="#e5e7eb" font-size="20" font-family="Arial, Helvetica, sans-serif">MCP · A2A/AP2 · x402</text>
+    <text x="28" y="134" fill="#e5e7eb" font-size="20" font-family="Arial, Helvetica, sans-serif">OAuth · MCP Apps</text>
+    <text x="28" y="170" fill="#e5e7eb" font-size="20" font-family="Arial, Helvetica, sans-serif">ERC-8004 · OASF</text>
+  </g>
+
+  <g transform="translate(1040,156)">
+    <circle cx="60" cy="60" r="60" fill="url(#accent)" filter="url(#glow)"/>
+    <polygon points="52,40 92,60 52,80" fill="#0b1220"/>
+  </g>
+
+  <text x="120" y="620" fill="#6b7280" font-size="18" font-family="Arial, Helvetica, sans-serif">
+    Template thumbnail — replace text and visuals before publishing
+  </text>
+</svg>

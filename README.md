@@ -1,8 +1,45 @@
 [![Test](https://img.shields.io/github/actions/workflow/status/FlowMCP/mcp-agent-validator/test-on-push.yml)](https://github.com/FlowMCP/mcp-agent-validator/actions) ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
 
-# MCP Agent Validator
+![AgentProbe — Multi-Protocol Agent Validator](docs/og-image.png)
+
+# AgentProbe (MCP Agent Validator)
 
 Web-based multi-protocol validator for AI agent endpoints. Enter a URL and get instant assessment across eight protocol layers — MCP, A2A/AP2, x402, OAuth 2.1, MCP Apps, ERC-8004, OASF, and on-chain reputation.
+
+**Live demo:** https://agentprobe.xyz  
+**Video:** TBD  
+**DoraHacks:** TBD
+
+## TL;DR
+
+- **Problem:** Agent endpoints are hard to validate across multiple evolving protocols.
+- **Solution:** One URL → unified assessment across MCP, A2A/AP2, x402, OAuth, MCP Apps, ERC-8004, OASF, and reputation.
+- **Benefit:** Faster debugging, safer integrations, and clearer compliance signals.
+
+## Demo
+
+![AgentProbe UI](docs/og-image.png)
+
+## Video (Thumbnail Template)
+
+![AgentProbe Video Thumbnail (Template)](docs/video-thumbnail-template.svg)
+
+## Quickstart
+
+```bash
+git clone https://github.com/FlowMCP/mcp-agent-validator.git
+cd mcp-agent-validator
+npm install
+npm run start:dev
+```
+
+Open `http://localhost:4000` in your browser and enter an endpoint URL to validate.
+
+## How It Works
+
+- **Input:** A single agent endpoint URL.
+- **Assessment:** Server runs the `mcp-agent-assessment` pipeline with protocol-specific validators.
+- **Output:** Unified verdicts per protocol layer plus raw assessment output.
 
 ## Features
 
@@ -34,17 +71,6 @@ flowchart LR
     H --> I
     K --> I
 ```
-
-## Quickstart
-
-```bash
-git clone https://github.com/FlowMCP/mcp-agent-validator.git
-cd mcp-agent-validator
-npm install
-npm run start:dev
-```
-
-Open `http://localhost:4000` in your browser and enter an endpoint URL to validate.
 
 ## API
 
