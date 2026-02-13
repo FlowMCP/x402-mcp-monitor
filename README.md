@@ -16,13 +16,9 @@ Web-based multi-protocol validator for AI agent endpoints. Enter a URL and get i
 - **Solution:** One URL → unified assessment across HTTP, MCP, A2A/AP2, x402, OAuth, MCP Apps, HTML, and ERC-8004.
 - **Benefit:** Faster debugging, safer integrations, and clearer compliance signals.
 
-## Demo
+## Demo Video
 
-![AgentProbe UI](docs/og-image.png)
-
-## Video (Thumbnail Template)
-
-![AgentProbe Video Thumbnail (Template)](docs/video-thumbnail-template.svg)
+[![Watch on YouTube](docs/video-preview.png)](https://www.youtube.com/watch?v=gnmsCEly3fA)
 
 ## Quickstart
 
@@ -43,14 +39,14 @@ Open `http://localhost:4000` in your browser and enter an endpoint URL to valida
 
 ## Features
 
+- **HTTP** — Connectivity, HTTPS, SSL validation, CORS, HTTP/2 detection
 - **MCP** — Server discovery, tool/resource/prompt listing, capability detection
-- **A2A / AP2** — Agent card validation, Google Agent Payments Protocol (AP2) version and role detection via `capabilities.extensions` and `X-A2A-Extensions` header
+- **A2A / AP2** — Agent card validation, AP2 version and role detection via `capabilities.extensions` and `X-A2A-Extensions` header
 - **x402** — Payment-required endpoint detection with scheme, network, and token analysis
-- **OAuth 2.1** — Authorization server metadata discovery
+- **OAuth** — Authorization server metadata discovery
 - **MCP Apps** — UI resource detection for MCP applications
-- **ERC-8004** — On-chain agent registry lookup with endpoint discovery, trust models, and metadata extraction
-- **OASF** — Open Agent Schema Framework classification (skills and domains from [agntcy/oasf](https://github.com/agntcy/oasf))
-- **Reputation** — On-chain reputation data via ERC-8004 `getMetadata`
+- **HTML** — Website detection, Content-Type, SSL status, HTTP/2
+- **ERC-8004** — On-chain agent registry lookup with OASF classification, reputation, and metadata extraction
 
 ## Architecture
 
@@ -157,7 +153,7 @@ src/
 │   ├── AssessmentProbe.mjs  # Maps assessment results to UI-friendly format
 │   └── AgentLookup.mjs     # Direct ERC-8004 on-chain registry queries
 docs/
-├── index.html              # Single-page frontend with OASF rendering
+├── index.html              # Single-page frontend
 └── style.css               # Styles
 tests/
 └── unit/
