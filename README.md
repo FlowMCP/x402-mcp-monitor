@@ -6,8 +6,8 @@
 
 Web-based multi-protocol validator for AI agent endpoints. Enter a URL and get instant assessment across eight protocol layers — HTTP, MCP, A2A/AP2, x402, OAuth, MCP Apps, HTML, and ERC-8004.
 
-**Live demo:** https://agentprobe.xyz
-**Video:** https://www.youtube.com/watch?v=gnmsCEly3fA
+**Live demo:** https://agentprobe.xyz<br>
+**Video:** https://www.youtube.com/watch?v=gnmsCEly3fA<br>
 **DoraHacks:** https://dorahacks.io/buidl/39293
 
 ## TL;DR
